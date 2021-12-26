@@ -2,7 +2,7 @@
 
 A Part III research project
 
-## Abstract
+### Abstract
 
 Learning informative, generalisable, and transferrable representations of graph-structured data
 using self-supervised learning is a fundamental problem in many real-world tasks, when labelled
