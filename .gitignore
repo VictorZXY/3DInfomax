@@ -1,5 +1,3 @@
-
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -104,43 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+.dmypy.json
+dmypy.json
 
-.vscode/
+# Pyre type checker
+.pyre/
 
-images_out/
-
-*.zip
-
-
-
-
-dataset/QM9/processed/
-dataset/QM9/processed_rdkit_conformers/
-dataset/QM9/geomol_predicted_qm9_structures/
-dataset/QM9/processed_rdkit_conformers2/
-dataset/ZINC/
-dataset/ogbg*/
-dataset/COLL/
-dataset/QM9Geomol/
-dataset/QMugs/
-dataset/MASIF/
-!/dataset
-/dataset/*
-!/dataset/QM9
-
-
+# Pycharm stuff
+.idea
 .idea/
 
-# temporary files
-temp/
-bsub*
-stderr*
-stdout*
-/dataset/ZINC/
-/dataset/ogbg_molhiv/
-/dataset/GEOM/
-
-runs2
-!/runs
-/runs/*
-!/runs/PNA_qmugs_NTXentMultiplePositives_620000_123_25-08_09-19-52
+# Project specific
+*.zip
