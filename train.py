@@ -31,9 +31,7 @@ from datasets.qm9_dataset_rdkit_conformers import QM9DatasetRDKITConformers
 
 from datasets.qm9_geomol_featurization import QM9GeomolFeaturization
 from datasets.qmugs_dataset import QMugsDataset
-from models.geomol_mpnn import GeomolGNNWrapper
 from trainer.byol_trainer import BYOLTrainer
-from trainer.byol_wrapper import BYOLwrapper
 
 import seaborn
 
