@@ -113,4 +113,10 @@ dmypy.json
 .idea/
 
 # Project specific
+dataset
+dataset/
+playground.*
+trained_models
+trained_models/
+*.pt
 *.zip
