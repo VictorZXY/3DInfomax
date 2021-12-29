@@ -8,7 +8,8 @@ from functools import partial
 from torch import nn
 import torch.nn.functional as F
 
-from commons.mol_encoder import AtomEncoder, BondEncoder
+# from commons.mol_encoder import AtomEncoder, BondEncoder
+from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 from models.base_layers import MLP
 
 EPS = 1e-5
@@ -155,6 +156,7 @@ class PNAGNN(nn.Module):
                          ),
 
             )
+
         self.atom_encoder = AtomEncoder(emb_dim=hidden_dim)
         self.bond_encoder = BondEncoder(emb_dim=hidden_dim)
 
