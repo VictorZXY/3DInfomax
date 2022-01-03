@@ -23,7 +23,8 @@ def _collate_fn(batch):
 
 
 def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
-                      model_optimiser='Adam', critic_optimiser='Adam',
+                      model_optimiser='Adam', model_optimiser_kwargs={},
+                      critic_optimiser='Adam', critic_optimiser_kwargs={},
                       loss='MSELoss', device='cuda'):
     # load dataset
     dataset = DglGraphPropPredDataset(name=dataset)
@@ -44,12 +45,12 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
 
     # load optimisers
     if model_optimiser == 'Adam':
-        modelA_optim = Adam(modelA.parameters())
-        modelB_optim = Adam(modelB.parameters())
+        modelA_optim = Adam(modelA.parameters(), **model_optimiser_kwargs)
+        modelB_optim = Adam(modelB.parameters(), **model_optimiser_kwargs)
     else:
         assert False
     if critic_optimiser == 'Adam':
-        critic_optim = Adam(critic.parameters())
+        critic_optim = Adam(critic.parameters(), **critic_optimiser_kwargs)
     else:
         assert False
 
@@ -107,8 +108,8 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
 
 
 def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
-                                 dataset, optimiser='Adam', loss='MSELoss',
-                                 device='cuda'):
+                                 dataset, optimiser='Adam', optimiser_kwargs={},
+                                 loss='MSELoss', device='cuda'):
     # load evaluator
     evaluator = Evaluator(name=dataset)
 
@@ -130,8 +131,10 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
 
     # load optimisers
     if optimiser == 'Adam':
-        pretrained_model_optim = Adam(pretrained_model.parameters())
-        control_model_optim = Adam(control_model.parameters())
+        pretrained_model_optim = Adam(pretrained_model.parameters(),
+                                      **optimiser_kwargs)
+        control_model_optim = Adam(control_model.parameters(),
+                                   **optimiser_kwargs)
     else:
         assert False
 
@@ -170,64 +173,67 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             control_model_result_dict = evaluator.eval(
                 {'y_true': label, 'y_pred': control_model_out})
 
-        print(f'Epoch {epoch + 1}: pretrained model loss: {pretrained_model_loss:.4}, control model loss: {control_model_loss:.4}')
+        print(
+            f'Epoch {epoch + 1}: pretrained model loss: {pretrained_model_loss:.4}, control model loss: {control_model_loss:.4}')
 
 
 if __name__ == '__main__':
-    # modelA = PNA(hidden_dim=20,
-    #              target_dim=20,
-    #              aggregators=['sum'],
-    #              scalers=['identity'],
-    #              readout_aggregators=['sum'],
+    modelA = PNA(hidden_dim=20,
+                 target_dim=20,
+                 aggregators=['sum'],
+                 scalers=['identity'],
+                 readout_aggregators=['sum'],
+                 readout_batchnor=True,
+                 readout_hidden_dim=None,
+                 readout_layer=2,
+                 residual=True,
+                 pairwise_distances=False,
+                 activation='relu')
+
+    modelB = PNA(hidden_dim=20,
+                 target_dim=20,
+                 aggregators=['sum'],
+                 scalers=['identity'],
+                 readout_aggregators=['sum'],
+                 readout_batchnor=True,
+                 readout_hidden_dim=None,
+                 readout_layer=2,
+                 residual=True,
+                 pairwise_distances=False,
+                 activation='relu')
+
+    critic = MLP(in_dim=20, out_dim=20, layers=1)
+
+    # modelA = PNA(hidden_dim=200,
+    #              target_dim=256,
+    #              aggregators=['mean', 'max', 'min', 'std'],
+    #              scalers=['identity', 'amplification', 'attenuation'],
+    #              readout_aggregators=['min', 'max', 'mean'],
     #              readout_batchnor=True,
-    #              readout_hidden_dim=None,
+    #              readout_hidden_dim=200,
     #              readout_layer=2,
     #              residual=True,
     #              pairwise_distances=False,
     #              activation='relu')
     #
-    # modelB = PNA(hidden_dim=20,
-    #              target_dim=20,
-    #              aggregators=['sum'],
-    #              scalers=['identity'],
-    #              readout_aggregators=['sum'],
+    # modelB = PNA(hidden_dim=100,
+    #              target_dim=256,
+    #              aggregators=['mean', 'max', 'min', 'std'],
+    #              scalers=['identity', 'amplification', 'attenuation'],
+    #              readout_aggregators=['min', 'max', 'mean'],
     #              readout_batchnor=True,
-    #              readout_hidden_dim=None,
+    #              readout_hidden_dim=200,
     #              readout_layer=2,
     #              residual=True,
     #              pairwise_distances=False,
     #              activation='relu')
     #
-    # critic = MLP(in_dim=20, out_dim=20, layers=1)
-    #
-    # # modelA = PNA(hidden_dim=200,
-    # #              target_dim=256,
-    # #              aggregators=['mean', 'max', 'min', 'std'],
-    # #              scalers=['identity', 'amplification', 'attenuation'],
-    # #              readout_aggregators=['min', 'max', 'mean'],
-    # #              readout_batchnor=True,
-    # #              readout_hidden_dim=200,
-    # #              readout_layer=2,
-    # #              residual=True,
-    # #              pairwise_distances=False,
-    # #              activation='relu')
-    # #
-    # # modelB = PNA(hidden_dim=100,
-    # #              target_dim=256,
-    # #              aggregators=['mean', 'max', 'min', 'std'],
-    # #              scalers=['identity', 'amplification', 'attenuation'],
-    # #              readout_aggregators=['min', 'max', 'mean'],
-    # #              readout_batchnor=True,
-    # #              readout_hidden_dim=200,
-    # #              readout_layer=2,
-    # #              residual=True,
-    # #              pairwise_distances=False,
-    # #              activation='relu')
-    # #
-    # # critic = MLP(in_dim=256, out_dim=256, layers=1)
-    #
-    # pretrain_baseline(modelA, modelB, critic, num_epochs=5,
-    #                   dataset='ogbg-molhiv')
+    # critic = MLP(in_dim=256, out_dim=256, layers=1)
+
+    pretrain_baseline(modelA, modelB, critic, num_epochs=5,
+                      model_optimiser_kwargs={'lr': 1e-5},
+                      critic_optimiser_kwargs={'lr': 1e-5},
+                      dataset='ogbg-molhiv')
 
     pretrained_model = PNA(hidden_dim=20,
                            target_dim=20,
@@ -264,4 +270,5 @@ if __name__ == '__main__':
     )
 
     finetune_baseline_vs_control(pretrained_model, control_model, num_epochs=20,
+                                 optimiser_kwargs={'lr': 1e-5},
                                  dataset='ogbg-molesol')
