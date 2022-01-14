@@ -7,6 +7,7 @@ from dgl.dataloading import GraphDataLoader
 from ogb.graphproppred import DglGraphPropPredDataset, Evaluator
 from torch.nn import MSELoss, Sequential
 from torch.optim import Adam
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from models.pna import PNA
@@ -25,7 +26,10 @@ def _collate_fn(batch):
 def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
                       model_optimiser='Adam', model_optimiser_kwargs={},
                       critic_optimiser='Adam', critic_optimiser_kwargs={},
-                      loss='MSELoss', device='cuda'):
+                      loss='MSELoss', device='cuda', tensorboard_writer=None):
+    # load TensorBoard writer
+    tensorboard_writer = tensorboard_writer or SummaryWriter()
+
     # load dataset
     dataset = DglGraphPropPredDataset(name=dataset)
     split_idx = dataset.get_idx_split()
@@ -61,7 +65,9 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
         assert False
 
     # pre-training
+    train_loader_size = len(train_loader)
     for epoch in range(num_epochs):
+        batch_i = 0
         for batch in tqdm(train_loader):
             graph = batch[0].to(device)
             graph.ndata['feat'] = graph.ndata['feat'].long()
@@ -80,6 +86,14 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
             modelB_loss = lossBA - lossAB
             critic_loss = lossAB + lossBA
 
+            tensorboard_writer.add_scalar('Pretrain_loss/GNN_A', modelA_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/GNN_B', modelB_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Critic', critic_loss,
+                                          epoch * train_loader_size + batch_i)
+            batch_i += 1
+
             modelA_loss.backward(inputs=list(modelA.parameters()),
                                  retain_graph=True)
             modelA_optim.step()
@@ -97,6 +111,7 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
             f'Epoch {epoch + 1}: modelA loss: {modelA_loss:.4}, modelB loss: {modelB_loss:.4}, critic loss: {critic_loss:.4}')
 
     # save model
+    tensorboard_writer.flush()
     if modelA_loss < modelB_loss:
         torch.save({
             'model_state_dict': modelA.state_dict(),
@@ -109,7 +124,11 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
 
 def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
                                  dataset, optimiser='Adam', optimiser_kwargs={},
-                                 loss='MSELoss', device='cuda'):
+                                 loss='MSELoss', device='cuda',
+                                 tensorboard_writer=None):
+    # load TensorBoard writer
+    tensorboard_writer = tensorboard_writer or SummaryWriter()
+
     # load evaluator
     evaluator = Evaluator(name=dataset)
 
@@ -145,7 +164,9 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
         assert False
 
     # fine-tuning both the pre-trained model and the control model
+    train_loader_size = len(train_loader)
     for epoch in range(num_epochs):
+        batch_i = 0
         for batch in tqdm(train_loader):
             graph = batch[0].to(device)
             graph.ndata['feat'] = graph.ndata['feat'].long()
@@ -159,6 +180,11 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
 
             pretrained_model_loss = loss(pretrained_model_out, label)
             control_model_loss = loss(control_model_out, label)
+
+            tensorboard_writer.add_scalar('Finetune_loss', {
+                'Baseline': pretrained_model_loss,
+                'Control': control_model_loss,
+            }, epoch * train_loader_size + batch_i)
 
             pretrained_model_loss.backward()
             pretrained_model_optim.step()
@@ -230,10 +256,13 @@ if __name__ == '__main__':
     #
     # critic = MLP(in_dim=256, out_dim=256, layers=1)
 
-    pretrain_baseline(modelA, modelB, critic, num_epochs=5,
+    tensorboard_writer = SummaryWriter()
+
+    pretrain_baseline(modelA, modelB, critic, num_epochs=10,
                       model_optimiser_kwargs={'lr': 1e-5},
                       critic_optimiser_kwargs={'lr': 1e-5},
-                      dataset='ogbg-molhiv')
+                      dataset='ogbg-molhiv',
+                      tensorboard_writer=tensorboard_writer)
 
     pretrained_model = PNA(hidden_dim=20,
                            target_dim=20,
@@ -269,6 +298,7 @@ if __name__ == '__main__':
         MLP(in_dim=20, out_dim=1, layers=1)
     )
 
-    finetune_baseline_vs_control(pretrained_model, control_model, num_epochs=20,
+    finetune_baseline_vs_control(pretrained_model, control_model, num_epochs=10,
                                  optimiser_kwargs={'lr': 1e-5},
-                                 dataset='ogbg-molesol')
+                                 dataset='ogbg-molesol',
+                                 tensorboard_writer=tensorboard_writer)
