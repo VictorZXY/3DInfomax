@@ -122,6 +122,116 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
         }, 'trained_models/pretrained_baseline.pt')
 
 
+def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
+                                dataset, model_optimiser='Adam',
+                                model_optimiser_kwargs={},
+                                critic_optimiser='Adam',
+                                critic_optimiser_kwargs={},
+                                loss='MSELoss', device='cuda',
+                                tensorboard_writer=None):
+    # load TensorBoard writer
+    tensorboard_writer = tensorboard_writer or SummaryWriter()
+
+    # load dataset
+    dataset = DglGraphPropPredDataset(name=dataset)
+    split_idx = dataset.get_idx_split()
+
+    # DataLoader
+    train_loader = GraphDataLoader(dataset[split_idx["train"]], batch_size=32,
+                                   shuffle=True, collate_fn=_collate_fn)
+    valid_loader = GraphDataLoader(dataset[split_idx["valid"]], batch_size=32,
+                                   shuffle=False, collate_fn=_collate_fn)
+    test_loader = GraphDataLoader(dataset[split_idx["test"]], batch_size=32,
+                                  shuffle=False, collate_fn=_collate_fn)
+
+    # load models onto device
+    modelA = modelA.to(device)
+    modelB = modelB.to(device)
+    criticA = criticA.to(device)
+    criticB = criticB.to(device)
+
+    # load optimisers
+    if model_optimiser == 'Adam':
+        modelA_optim = Adam(modelA.parameters(), **model_optimiser_kwargs)
+        modelB_optim = Adam(modelB.parameters(), **model_optimiser_kwargs)
+    else:
+        assert False
+    if critic_optimiser == 'Adam':
+        criticA_optim = Adam(criticA.parameters(), **critic_optimiser_kwargs)
+        criticB_optim = Adam(criticB.parameters(), **critic_optimiser_kwargs)
+    else:
+        assert False
+
+    # load loss function
+    if loss == 'MSELoss':
+        loss = MSELoss()
+    else:
+        assert False
+
+    # pre-training
+    train_loader_size = len(train_loader)
+    for epoch in range(num_epochs):
+        batch_i = 0
+        for batch in tqdm(train_loader):
+            graph = batch[0].to(device)
+            graph.ndata['feat'] = graph.ndata['feat'].long()
+            graph.edata['feat'] = graph.edata['feat'].long()
+            graph_copy = copy.deepcopy(graph)
+
+            modelA_out = modelA(graph)
+            modelB_out = modelB(graph_copy)
+
+            criticA_out = criticA(modelA_out)
+            criticB_out = criticB(modelB_out)
+
+            lossAB = loss(criticA_out, modelB_out)
+            lossBA = loss(criticB_out, modelA_out)
+            modelA_loss = lossAB - lossBA
+            modelB_loss = lossBA - lossAB
+            criticA_loss = lossAB
+            criticB_loss = lossBA
+
+            tensorboard_writer.add_scalar('Pretrain_loss/GNN_A', modelA_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/GNN_B', modelB_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Critic_A', criticA_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Critic_B', criticB_loss,
+                                          epoch * train_loader_size + batch_i)
+            batch_i += 1
+
+            modelA_loss.backward(inputs=list(modelA.parameters()),
+                                 retain_graph=True)
+            modelA_optim.step()
+            modelB_loss.backward(inputs=list(modelB.parameters()),
+                                 retain_graph=True)
+            modelB_optim.step()
+            criticA_loss.backward(inputs=list(criticA.parameters()))
+            criticA_optim.step()
+            criticB_loss.backward(inputs=list(criticB.parameters()))
+            criticB_optim.step()
+
+            modelA_optim.zero_grad()
+            modelB_optim.zero_grad()
+            criticA_optim.zero_grad()
+            criticB_optim.zero_grad()
+
+        print(
+            f'Epoch {epoch + 1}: modelA loss: {modelA_loss:.4}, modelB loss: {modelB_loss:.4}, criticA loss: {criticA_loss:.4}, criticB loss: {criticB_loss:.4}')
+
+    # save model
+    tensorboard_writer.flush()
+    if modelA_loss < modelB_loss:
+        torch.save({
+            'model_state_dict': modelA.state_dict(),
+        }, 'trained_models/pretrained_baseline.pt')
+    else:
+        torch.save({
+            'model_state_dict': modelB.state_dict(),
+        }, 'trained_models/pretrained_baseline.pt')
+
+
 def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
                                  dataset, optimiser='Adam', optimiser_kwargs={},
                                  loss='MSELoss', device='cuda',
@@ -230,6 +340,9 @@ if __name__ == '__main__':
 
     critic = MLP(in_dim=20, out_dim=20, layers=1)
 
+    criticA = MLP(in_dim=20, out_dim=20, layers=1)
+    criticB = copy.deepcopy(critic)
+
     # modelA = PNA(hidden_dim=200,
     #              target_dim=256,
     #              aggregators=['mean', 'max', 'min', 'std'],
@@ -263,6 +376,12 @@ if __name__ == '__main__':
                       critic_optimiser_kwargs={'lr': 1e-5},
                       dataset='ogbg-molhiv',
                       tensorboard_writer=tensorboard_writer)
+
+    # pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs=10,
+    #                             model_optimiser_kwargs={'lr': 1e-5},
+    #                             critic_optimiser_kwargs={'lr': 1e-5},
+    #                             dataset='ogbg-molhiv',
+    #                             tensorboard_writer=tensorboard_writer)
 
     pretrained_model = PNA(hidden_dim=20,
                            target_dim=20,
