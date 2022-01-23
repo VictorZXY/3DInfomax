@@ -66,6 +66,9 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
 
     # pre-training
     train_loader_size = len(train_loader)
+    valid_loader_size = len(valid_loader)
+    test_loader_size = len(test_loader)
+
     for epoch in range(num_epochs):
         batch_i = 0
         for batch in tqdm(train_loader):
@@ -86,11 +89,15 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
             modelB_loss = lossBA - lossAB
             critic_loss = lossAB + lossBA
 
-            tensorboard_writer.add_scalar('Pretrain_loss/GNN_A', modelA_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/loss_AB', lossAB,
                                           epoch * train_loader_size + batch_i)
-            tensorboard_writer.add_scalar('Pretrain_loss/GNN_B', modelB_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/loss_BA', lossBA,
                                           epoch * train_loader_size + batch_i)
-            tensorboard_writer.add_scalar('Pretrain_loss/Critic', critic_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/GNN_A', modelA_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/GNN_B', modelB_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/Critic', critic_loss,
                                           epoch * train_loader_size + batch_i)
             batch_i += 1
 
@@ -107,19 +114,67 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
             modelB_optim.zero_grad()
             critic_optim.zero_grad()
 
+        with torch.no_grad():
+            valid_lossAB = 0
+            valid_lossBA = 0
+            valid_modelA_loss = 0
+            valid_modelB_loss = 0
+            valid_critic_loss = 0
+
+            for valid_batch in tqdm(valid_loader):
+                valid_graph = valid_batch[0].to(device)
+                valid_graph.ndata['feat'] = valid_graph.ndata['feat'].long()
+                valid_graph.edata['feat'] = valid_graph.edata['feat'].long()
+                valid_graph_copy = copy.deepcopy(graph)
+
+                valid_modelA_out = modelA(valid_graph)
+                valid_modelB_out = modelB(valid_graph_copy)
+
+                valid_criticA_out = critic(valid_modelA_out)
+                valid_criticB_out = critic(valid_modelB_out)
+
+                valid_lossAB += loss(valid_criticA_out, valid_modelB_out)
+                valid_lossBA += loss(valid_criticB_out, valid_modelA_out)
+                valid_modelA_loss += valid_lossAB - valid_lossBA
+                valid_modelB_loss += valid_lossBA - valid_lossAB
+                valid_critic_loss += valid_lossAB + valid_lossBA
+
+            valid_lossAB /= valid_loader_size
+            valid_lossBA /= valid_loader_size
+            valid_modelA_loss /= valid_loader_size
+            valid_modelB_loss /= valid_loader_size
+            valid_critic_loss /= valid_loader_size
+
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/loss_AB',
+                                          valid_lossAB, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/loss_BA',
+                                          valid_lossBA, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/GNN_A',
+                                          valid_modelA_loss, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/GNN_B',
+                                          valid_modelB_loss, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/Critic',
+                                          valid_critic_loss, epoch)
+
+        print(f'Epoch {epoch + 1}:')
         print(
-            f'Epoch {epoch + 1}: modelA loss: {modelA_loss:.4}, modelB loss: {modelB_loss:.4}, critic loss: {critic_loss:.4}')
+            f'Training losses: GNN_A: {modelA_loss:.4}, GNN_B: {modelB_loss:.4}, Critic: {critic_loss:.4}')
+        print(
+            f'Validation losses: GNN_A: {valid_modelA_loss:.4}, GNN_B: {valid_modelB_loss:.4}, Critic: {valid_critic_loss:.4}')
 
     # save model
     tensorboard_writer.flush()
-    if modelA_loss < modelB_loss:
-        torch.save({
-            'model_state_dict': modelA.state_dict(),
-        }, 'trained_models/pretrained_baseline.pt')
-    else:
-        torch.save({
-            'model_state_dict': modelB.state_dict(),
-        }, 'trained_models/pretrained_baseline.pt')
+    torch.save({
+        'model_state_dict': modelA.state_dict(),
+    }, 'trained_models/pretrained_baseline.pt')
+    # if modelA_loss < modelB_loss:
+    #     torch.save({
+    #         'model_state_dict': modelA.state_dict(),
+    #     }, 'trained_models/pretrained_baseline.pt')
+    # else:
+    #     torch.save({
+    #         'model_state_dict': modelB.state_dict(),
+    #     }, 'trained_models/pretrained_baseline.pt')
 
 
 def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
@@ -170,6 +225,9 @@ def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
 
     # pre-training
     train_loader_size = len(train_loader)
+    valid_loader_size = len(valid_loader)
+    test_loader_size = len(test_loader)
+
     for epoch in range(num_epochs):
         batch_i = 0
         for batch in tqdm(train_loader):
@@ -191,13 +249,17 @@ def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
             criticA_loss = lossAB
             criticB_loss = lossBA
 
-            tensorboard_writer.add_scalar('Pretrain_loss/GNN_A', modelA_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/loss_AB', lossAB,
                                           epoch * train_loader_size + batch_i)
-            tensorboard_writer.add_scalar('Pretrain_loss/GNN_B', modelB_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/loss_BA', lossBA,
                                           epoch * train_loader_size + batch_i)
-            tensorboard_writer.add_scalar('Pretrain_loss/Critic_A', criticA_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/GNN_A', modelA_loss,
                                           epoch * train_loader_size + batch_i)
-            tensorboard_writer.add_scalar('Pretrain_loss/Critic_B', criticB_loss,
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/GNN_B', modelB_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/Critic_A', criticA_loss,
+                                          epoch * train_loader_size + batch_i)
+            tensorboard_writer.add_scalar('Pretrain_loss/Train/Critic_B', criticB_loss,
                                           epoch * train_loader_size + batch_i)
             batch_i += 1
 
@@ -217,19 +279,72 @@ def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
             criticA_optim.zero_grad()
             criticB_optim.zero_grad()
 
+        with torch.no_grad():
+            valid_lossAB = 0
+            valid_lossBA = 0
+            valid_modelA_loss = 0
+            valid_modelB_loss = 0
+            valid_criticA_loss = 0
+            valid_criticB_loss = 0
+
+            for valid_batch in tqdm(valid_loader):
+                valid_graph = valid_batch[0].to(device)
+                valid_graph.ndata['feat'] = valid_graph.ndata['feat'].long()
+                valid_graph.edata['feat'] = valid_graph.edata['feat'].long()
+                valid_graph_copy = copy.deepcopy(graph)
+
+                valid_modelA_out = modelA(valid_graph)
+                valid_modelB_out = modelB(valid_graph_copy)
+
+                valid_criticA_out = criticA(valid_modelA_out)
+                valid_criticB_out = criticB(valid_modelB_out)
+
+                valid_lossAB += loss(valid_criticA_out, valid_modelB_out)
+                valid_lossBA += loss(valid_criticB_out, valid_modelA_out)
+                valid_modelA_loss += valid_lossAB - valid_lossBA
+                valid_modelB_loss += valid_lossBA - valid_lossAB
+                valid_criticA_loss += valid_lossAB
+                valid_criticB_loss += valid_lossBA
+
+            valid_lossAB /= valid_loader_size
+            valid_lossBA /= valid_loader_size
+            valid_modelA_loss /= valid_loader_size
+            valid_modelB_loss /= valid_loader_size
+            valid_criticA_loss /= valid_loader_size
+            valid_criticB_loss /= valid_loader_size
+
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/loss_AB',
+                                          valid_lossAB, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/loss_BA',
+                                          valid_lossBA, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/GNN_A',
+                                          valid_modelA_loss, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/GNN_B',
+                                          valid_modelB_loss, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/Critic_A',
+                                          valid_criticA_loss, epoch)
+            tensorboard_writer.add_scalar('Pretrain_loss/Valid/Critic_B',
+                                          valid_criticB_loss, epoch)
+
+        print(f'Epoch {epoch + 1}:')
         print(
-            f'Epoch {epoch + 1}: modelA loss: {modelA_loss:.4}, modelB loss: {modelB_loss:.4}, criticA loss: {criticA_loss:.4}, criticB loss: {criticB_loss:.4}')
+            f'Training losses: GNN_A: {modelA_loss:.4}, GNN_B: {modelB_loss:.4}, Critic_A: {criticA_loss:.4}, Critic_B: {criticB_loss:.4}')
+        print(
+            f'Validation losses: GNN_A: {valid_modelA_loss:.4}, GNN_B: {valid_modelB_loss:.4}, Critic_A: {valid_criticA_loss:.4}, Critic_B: {valid_criticB_loss:.4}')
 
     # save model
     tensorboard_writer.flush()
-    if modelA_loss < modelB_loss:
-        torch.save({
-            'model_state_dict': modelA.state_dict(),
-        }, 'trained_models/pretrained_baseline.pt')
-    else:
-        torch.save({
-            'model_state_dict': modelB.state_dict(),
-        }, 'trained_models/pretrained_baseline.pt')
+    torch.save({
+        'model_state_dict': modelA.state_dict(),
+    }, 'trained_models/pretrained_baseline.pt')
+    # if modelA_loss < modelB_loss:
+    #     torch.save({
+    #         'model_state_dict': modelA.state_dict(),
+    #     }, 'trained_models/pretrained_baseline.pt')
+    # else:
+    #     torch.save({
+    #         'model_state_dict': modelB.state_dict(),
+    #     }, 'trained_models/pretrained_baseline.pt')
 
 
 def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
@@ -274,7 +389,7 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
         assert False
 
     # fine-tuning both the pre-trained model and the control model
-    train_loader_size = len(train_loader)
+    train_data_size = len(train_loader)
     for epoch in range(num_epochs):
         batch_i = 0
         for batch in tqdm(train_loader):
@@ -291,10 +406,11 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             pretrained_model_loss = loss(pretrained_model_out, label)
             control_model_loss = loss(control_model_out, label)
 
-            tensorboard_writer.add_scalar('Finetune_loss', {
+            tensorboard_writer.add_scalars('Finetune_loss', {
                 'Baseline': pretrained_model_loss,
                 'Control': control_model_loss,
-            }, epoch * train_loader_size + batch_i)
+            }, epoch * train_data_size + batch_i)
+            batch_i += 1
 
             pretrained_model_loss.backward()
             pretrained_model_optim.step()
@@ -326,7 +442,7 @@ if __name__ == '__main__':
                  pairwise_distances=False,
                  activation='relu')
 
-    modelB = PNA(hidden_dim=20,
+    modelB = PNA(hidden_dim=10,
                  target_dim=20,
                  aggregators=['sum'],
                  scalers=['identity'],
@@ -374,7 +490,7 @@ if __name__ == '__main__':
     pretrain_baseline(modelA, modelB, critic, num_epochs=10,
                       model_optimiser_kwargs={'lr': 1e-5},
                       critic_optimiser_kwargs={'lr': 1e-5},
-                      dataset='ogbg-molhiv',
+                      dataset='ogbg-molpcba',
                       tensorboard_writer=tensorboard_writer)
 
     # pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs=10,
@@ -419,5 +535,5 @@ if __name__ == '__main__':
 
     finetune_baseline_vs_control(pretrained_model, control_model, num_epochs=10,
                                  optimiser_kwargs={'lr': 1e-5},
-                                 dataset='ogbg-molesol',
+                                 dataset='ogbg-molpcba',
                                  tensorboard_writer=tensorboard_writer)
