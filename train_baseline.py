@@ -125,7 +125,7 @@ def pretrain_baseline(modelA, modelB, critic, num_epochs, dataset,
                 valid_graph = valid_batch[0].to(device)
                 valid_graph.ndata['feat'] = valid_graph.ndata['feat'].long()
                 valid_graph.edata['feat'] = valid_graph.edata['feat'].long()
-                valid_graph_copy = copy.deepcopy(graph)
+                valid_graph_copy = copy.deepcopy(valid_graph)
 
                 valid_modelA_out = modelA(valid_graph)
                 valid_modelB_out = modelB(valid_graph_copy)
@@ -291,7 +291,7 @@ def pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs,
                 valid_graph = valid_batch[0].to(device)
                 valid_graph.ndata['feat'] = valid_graph.ndata['feat'].long()
                 valid_graph.edata['feat'] = valid_graph.edata['feat'].long()
-                valid_graph_copy = copy.deepcopy(graph)
+                valid_graph_copy = copy.deepcopy(valid_graph)
 
                 valid_modelA_out = modelA(valid_graph)
                 valid_modelB_out = modelB(valid_graph_copy)
@@ -390,6 +390,9 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
 
     # fine-tuning both the pre-trained model and the control model
     train_data_size = len(train_loader)
+    valid_loader_size = len(valid_loader)
+    test_loader_size = len(test_loader)
+
     for epoch in range(num_epochs):
         batch_i = 0
         for batch in tqdm(train_loader):
@@ -406,7 +409,7 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             pretrained_model_loss = loss(pretrained_model_out, label)
             control_model_loss = loss(control_model_out, label)
 
-            tensorboard_writer.add_scalars('Finetune_loss', {
+            tensorboard_writer.add_scalars('Finetune_loss/Train', {
                 'Baseline': pretrained_model_loss,
                 'Control': control_model_loss,
             }, epoch * train_data_size + batch_i)
@@ -425,8 +428,37 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             control_model_result_dict = evaluator.eval(
                 {'y_true': label, 'y_pred': control_model_out})
 
+        with torch.no_grad():
+            valid_pretrained_model_loss = 0
+            valid_control_model_loss = 0
+
+            for valid_batch in tqdm(valid_loader):
+                valid_graph = valid_batch[0].to(device)
+                valid_graph.ndata['feat'] = valid_graph.ndata['feat'].long()
+                valid_graph.edata['feat'] = valid_graph.edata['feat'].long()
+                valid_graph_copy = copy.deepcopy(valid_graph)
+
+                valid_pretrained_model_out = pretrained_model(valid_graph)
+                valid_control_model_out = control_model(valid_graph_copy)
+
+                valid_label = valid_batch[1].to(device)
+
+                valid_pretrained_model_loss += loss(valid_pretrained_model_out, valid_label)
+                valid_control_model_loss += loss(valid_control_model_out, valid_label)
+
+            valid_pretrained_model_loss /= valid_loader_size
+            valid_control_model_loss /= valid_loader_size
+
+            tensorboard_writer.add_scalars('Finetune_loss/Valid', {
+                'Baseline': pretrained_model_loss,
+                'Control': control_model_loss,
+            }, epoch)
+
+        print(f'Epoch {epoch + 1}:')
         print(
-            f'Epoch {epoch + 1}: pretrained model loss: {pretrained_model_loss:.4}, control model loss: {control_model_loss:.4}')
+            f'Training losses: pretrained model: {pretrained_model_loss:.4}, control model: {control_model_loss:.4}')
+        print(
+            f'Validation losses: pretrained model: {valid_pretrained_model_loss:.4}, control model: {valid_control_model_loss:.4}')
 
 
 if __name__ == '__main__':
