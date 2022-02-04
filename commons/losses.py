@@ -30,6 +30,15 @@ class OGBNanLabelMSELoss(_Loss):
         loss = self.mse_loss(pred[is_labeled], target[is_labeled])
         return loss
 
+class CLASSLoss(_Loss):
+    def __init__(self) -> None:
+        super(CLASSLoss, self).__init__()
+        self.mse_loss = MSELoss()
+    def forward(self, pred, target, **kwargs):
+
+        loss = self.mse_loss(pred[is_labeled], target[is_labeled])
+        return loss
+
 class CriticLoss(_Loss):
     def __init__(self) -> None:
         super(CriticLoss, self).__init__()
