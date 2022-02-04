@@ -88,7 +88,7 @@ class Trainer():
 
                 self.tensorboard_log(metrics, data_split='val', log_hparam=True, step=self.optim_steps)
                 val_loss = metrics[type(self.loss_func).__name__]
-                log('[Epoch %d] %s: %.6f val loss: %.6f' % (epoch, self.main_metric, val_score, val_loss))
+                log(f'[Epoch {epoch}] {self.main_metric}: {val_score} val loss: {val_loss}')
                 # save the model with the best main_metric depending on wether we want to maximize or minimize the main metric
                 if val_score >= self.best_val_score and self.main_metric_goal == 'max' or val_score <= self.best_val_score and self.main_metric_goal == 'min':
                     epochs_no_improve = 0
@@ -152,8 +152,7 @@ class Trainer():
                     metrics[type(self.loss_func).__name__] = loss.item()
                     metrics.update(loss_components)
                     self.tensorboard_log(metrics, data_split='train', step=self.optim_steps)
-                    log('[Epoch %d; Iter %5d/%5d] %s: loss: %.7f' % (
-                        self.epoch, i + 1, len(data_loader), 'train', loss.item()))
+                    log(f'[Epoch {self.epoch}; Iter {i + 1}/{len(data_loader)}] train: loss: {loss.item()}')
                 if optim == None and self.val_per_batch:  # during validation or testing when we want to average metrics over all the data in that dataloader
                     metrics = self.evaluate_metrics(predictions, targets, val=True)
                     metrics[type(self.loss_func).__name__] = loss.item()
@@ -250,7 +249,7 @@ class Trainer():
         run_dir = self.writer.log_dir
         self.save_model_state(epoch, checkpoint_name)
         train_args = copy.copy(self.args)
-        train_args.config = os.path.join(run_dir, os.path.basename(self.args.config))
+        train_args.config = os.path.join(run_dir, os.path.basename(self.args.config.name))
         with open(os.path.join(run_dir, 'train_arguments.yaml'), 'w') as yaml_path:
             pyaml.dump(train_args.__dict__, yaml_path)
 

@@ -5,7 +5,7 @@ dataset: class_freesolv
 num_epochs: 1000
 batch_size: 500
 log_iterations: 2
-patience: 35
+patience: 10000 # for early stopping etc
 loss_func: CLASSLoss
 num_train: 50000
 
@@ -19,6 +19,13 @@ optimizer: Adam
 optimizer_params:
   lr: 8.0e-5
 
+optimizer2: Adam
+optimizer2_params:
+  lr: 8.0e-5
+
+optimizer_critic: Adam
+optimizer_critic_params:
+  lr: 8.0e-5
 
 scheduler_step_per_batch: False
 lr_scheduler: WarmUpWrapper
