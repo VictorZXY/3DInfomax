@@ -17,6 +17,13 @@ def graph_collate(batch: List[Tuple]):
         targets = targets.unsqueeze(-1)
     return [batched_graph], targets
 
+def class_collate(batch):
+    # batch is a list of tuple (graph, label)
+    graphs = [e[0] for e in batch]
+    g = dgl.batch(graphs)
+    labels = [e[1] for e in batch]
+    labels = torch.stack(labels, 0)
+    return g, labels
 
 def pytorch_geometric_collate(batch: List[Tuple]):
     graphs, targets = map(list, zip(*batch))

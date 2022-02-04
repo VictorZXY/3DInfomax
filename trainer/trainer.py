@@ -11,7 +11,6 @@ import torch
 import numpy as np
 from torch.utils.tensorboard.summary import hparams
 
-from datasets.samplers import HardSampler
 from models import *  # do not remove
 from trainer.lr_schedulers import WarmUpWrapper  # do not remove
 
@@ -21,7 +20,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 
-from commons.utils import flatten_dict, tensorboard_gradient_magnitude, move_to_device, list_detach, concat_if_list, log
+from commons.utils import flatten_dict, tensorboard_gradient_magnitude, move_to_device, log
 
 
 class Trainer():
@@ -57,7 +56,7 @@ class Trainer():
             self.optim_steps = 0
             self.best_val_score = -np.inf if self.main_metric_goal == 'max' else np.inf  # running score to decide whether or not a new model should be saved
             self.writer = SummaryWriter(run_dir)
-            shutil.copyfile(self.args.config, os.path.join(self.writer.log_dir, os.path.basename(self.args.config)))
+            shutil.copyfile(self.args.config.name, os.path.join(self.writer.log_dir, os.path.basename(self.args.config.name)))
         #for i, param_group in enumerate(self.optim.param_groups):
         #    param_group['lr'] = 0.0003
         self.epoch = self.start_epoch
@@ -132,7 +131,7 @@ class Trainer():
             self.after_optim_step()  # overwrite this function to do stuff before zeroing out grads
             self.optim.zero_grad()
             self.optim_steps += 1
-        return loss, loss_components, list_detach(predictions), list_detach(targets)
+        return loss, loss_components, (predictions), (targets)
 
     def predict(self, data_loader: DataLoader, optim: torch.optim.Optimizer = None, return_pred=False):
         total_metrics = {k: 0 for k in
@@ -174,7 +173,7 @@ class Trainer():
                 total_metrics = self.evaluate_metrics(epoch_predictions, epoch_targets, val=True)
                 total_metrics[type(self.loss_func).__name__] = epoch_loss / loader_len
             if return_pred:
-                return total_metrics, list_detach(epoch_predictions), list_detach(epoch_targets)
+                return total_metrics, (epoch_predictions), (epoch_targets)
             else:
                 return total_metrics, None, None
 
@@ -193,10 +192,10 @@ class Trainer():
 
     def evaluate_metrics(self, predictions, targets, batch=None, val=False) -> Dict[str, float]:
         metrics = {}
-        metrics[f'mean_pred'] = torch.mean(concat_if_list(predictions)).item()
-        metrics[f'std_pred'] = torch.std(concat_if_list(predictions)).item()
-        metrics[f'mean_targets'] = torch.mean(concat_if_list(targets)).item()
-        metrics[f'std_targets'] = torch.std(concat_if_list(targets)).item()
+        metrics[f'mean_pred'] = torch.mean((predictions)).item()
+        metrics[f'std_pred'] = torch.std((predictions)).item()
+        metrics[f'mean_targets'] = torch.mean((targets)).item()
+        metrics[f'std_targets'] = torch.std((targets)).item()
         for key, metric in self.metrics.items():
             if not hasattr(metric, 'val_only') or val:
                 metrics[key] = metric(predictions, targets).item()

@@ -4,7 +4,9 @@ import copy
 import os
 import re
 
+from dgl.dataloading import GraphDataLoader
 from icecream import install
+from ogb.graphproppred import DglGraphPropPredDataset
 from ogb.lsc import DglPCQM4MDataset, PCQM4MEvaluator
 from ogb.utils import smiles2graph
 
@@ -35,6 +37,7 @@ from trainer.byol_trainer import BYOLTrainer
 
 import seaborn
 
+from trainer.class_pre_trainer import CLASSTrainer
 from trainer.graphcl_trainer import GraphCLTrainer
 from trainer.optimal_transport_trainer import OptimalTransportTrainer
 from trainer.philosophy_trainer import PhilosophyTrainer
@@ -73,7 +76,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pna.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pre-train_CLASS.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard logdirectory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -160,14 +163,14 @@ def parse_arguments():
 
 def get_trainer(args, model, data, device, metrics):
     tensorboard_functions = {function: TENSORBOARD_FUNCTIONS[function] for function in args.tensorboard_functions}
-    if args.model3d_type:
-        model3d = globals()[args.model3d_type](
+    if args.model2_type:
+        model3d = globals()[args.model2_type](
             node_dim=0,  # 3d model has no input node features
             edge_dim=data[0][1].edata['d'].shape[
                 1] if args.use_e_features and isinstance(data[0][1], dgl.DGLGraph) else 0,
             avg_d=data.avg_degree if hasattr(data, 'avg_degree') else 1,
-            **args.model3d_parameters)
-        print('3D model trainable params: ', sum(p.numel() for p in model3d.parameters() if p.requires_grad))
+            **args.model2_parameters)
+        print('model2 trainable params: ', sum(p.numel() for p in model3d.parameters() if p.requires_grad))
 
         critic = None
         if args.trainer == 'byol':
@@ -180,6 +183,9 @@ def get_trainer(args, model, data, device, metrics):
             ssl_trainer = SelfSupervisedTrainer
         elif args.trainer == 'philosophy':
             ssl_trainer = PhilosophyTrainer
+            critic = globals()[args.critic_type](**args.critic_parameters)
+        elif args.trainer == 'class':
+            ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
         return ssl_trainer(model=model, model3d=model3d, critic=critic, args=args, metrics=metrics,
                            main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
@@ -281,7 +287,40 @@ def train(args):
         return train_geomol(args, device, metrics_dict)
     elif 'ogbg' in args.dataset:
         return train_ogbg(args, device, metrics_dict)
+    elif 'class' in args.dataset:
+        return train_class(args, device, metrics_dict)
 
+def train_class(args, device, metrics_dict):
+    if args.dataset == 'class_hiv':
+        all_data = DglGraphPropPredDataset(name='ogbg-molhiv')
+    elif args.dataset == 'class_freesolv':
+        all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv')
+
+
+
+    model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
+    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
+        args.collate_function](**args.collate_params)
+    split_idx = all_data.get_idx_split()
+    if args.train_sampler != None:
+        sampler = globals()[args.train_sampler](data_source=all_data, batch_size=args.batch_size, indices=split_idx["train"])
+        train_loader = DataLoader(Subset(all_data, split_idx["train"]), batch_sampler=sampler, collate_fn=collate_function)
+    else:
+        train_loader = DataLoader(Subset(all_data, split_idx["train"]), batch_size=args.batch_size, shuffle=True,
+                                  collate_fn=collate_function)
+    val_loader = DataLoader(Subset(all_data, split_idx["valid"]), batch_size=args.batch_size, collate_fn=collate_function)
+    test_loader = DataLoader(Subset(all_data, split_idx["test"]), batch_size=args.batch_size, collate_fn=collate_function)
+
+    metrics = {metric: metrics_dict[metric] for metric in args.metrics if metric != 'qm9_properties'}
+
+    trainer = get_trainer(args=args, model=model, data=all_data, device=device, metrics=metrics)
+    val_metrics = trainer.train(train_loader, val_loader)
+    if args.eval_on_test:
+        test_metrics = trainer.evaluation(test_loader, data_split='test')
+        return val_metrics, test_metrics, trainer.writer.log_dir
+    return val_metrics
 
 def train_geomol(args, device, metrics_dict):
     if args.dataset == 'bace_geomol':

@@ -1,3 +1,4 @@
+import os
 from itertools import chain
 from typing import Union, Tuple, Dict, Callable
 
@@ -15,7 +16,7 @@ class CLASSTrainer(Trainer):
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
                  scheduler_step_per_batch: bool = True, **kwargs):
         self.model3d = model3d.to(device)  # move to device before loading optim params in super class
-        super(SelfSupervisedTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
+        super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
                                                     optim, main_metric_goal, loss_func, scheduler_step_per_batch)
 
         if args.checkpoint:
