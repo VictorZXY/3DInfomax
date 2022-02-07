@@ -405,6 +405,7 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             control_model_out = control_model(graph_copy)
 
             label = batch[1].to(device)
+            label = label.float()
 
             pretrained_model_loss = loss(pretrained_model_out, label)
             control_model_loss = loss(control_model_out, label)
@@ -423,10 +424,10 @@ def finetune_baseline_vs_control(pretrained_model, control_model, num_epochs,
             pretrained_model_optim.zero_grad()
             control_model_optim.zero_grad()
 
-            pretrained_model_result_dict = evaluator.eval(
-                {'y_true': label, 'y_pred': pretrained_model_out})
-            control_model_result_dict = evaluator.eval(
-                {'y_true': label, 'y_pred': control_model_out})
+            # pretrained_model_result_dict = evaluator.eval(
+            #     {'y_true': label, 'y_pred': pretrained_model_out})
+            # control_model_result_dict = evaluator.eval(
+            #     {'y_true': label, 'y_pred': control_model_out})
 
         with torch.no_grad():
             valid_pretrained_model_loss = 0
@@ -491,45 +492,19 @@ if __name__ == '__main__':
     criticA = MLP(in_dim=20, out_dim=20, layers=1)
     criticB = copy.deepcopy(critic)
 
-    # modelA = PNA(hidden_dim=200,
-    #              target_dim=256,
-    #              aggregators=['mean', 'max', 'min', 'std'],
-    #              scalers=['identity', 'amplification', 'attenuation'],
-    #              readout_aggregators=['min', 'max', 'mean'],
-    #              readout_batchnor=True,
-    #              readout_hidden_dim=200,
-    #              readout_layer=2,
-    #              residual=True,
-    #              pairwise_distances=False,
-    #              activation='relu')
-    #
-    # modelB = PNA(hidden_dim=100,
-    #              target_dim=256,
-    #              aggregators=['mean', 'max', 'min', 'std'],
-    #              scalers=['identity', 'amplification', 'attenuation'],
-    #              readout_aggregators=['min', 'max', 'mean'],
-    #              readout_batchnor=True,
-    #              readout_hidden_dim=200,
-    #              readout_layer=2,
-    #              residual=True,
-    #              pairwise_distances=False,
-    #              activation='relu')
-    #
-    # critic = MLP(in_dim=256, out_dim=256, layers=1)
-
     tensorboard_writer = SummaryWriter()
 
-    pretrain_baseline(modelA, modelB, critic, num_epochs=10,
-                      model_optimiser_kwargs={'lr': 1e-5},
-                      critic_optimiser_kwargs={'lr': 1e-5},
-                      dataset='ogbg-molpcba',
-                      tensorboard_writer=tensorboard_writer)
+    # pretrain_baseline(modelA, modelB, critic, num_epochs=10,
+    #                   model_optimiser_kwargs={'lr': 1e-5},
+    #                   critic_optimiser_kwargs={'lr': 1e-5},
+    #                   dataset='ogbg-molhiv',
+    #                   tensorboard_writer=tensorboard_writer)
 
-    # pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs=10,
-    #                             model_optimiser_kwargs={'lr': 1e-5},
-    #                             critic_optimiser_kwargs={'lr': 1e-5},
-    #                             dataset='ogbg-molhiv',
-    #                             tensorboard_writer=tensorboard_writer)
+    pretrain_baseline_2_critics(modelA, modelB, criticA, criticB, num_epochs=10,
+                                model_optimiser_kwargs={'lr': 1e-5},
+                                critic_optimiser_kwargs={'lr': 1e-5},
+                                dataset='ogbg-molhiv',
+                                tensorboard_writer=tensorboard_writer)
 
     pretrained_model = PNA(hidden_dim=20,
                            target_dim=20,
@@ -567,5 +542,5 @@ if __name__ == '__main__':
 
     finetune_baseline_vs_control(pretrained_model, control_model, num_epochs=10,
                                  optimiser_kwargs={'lr': 1e-5},
-                                 dataset='ogbg-molpcba',
+                                 dataset='ogbg-molhiv',
                                  tensorboard_writer=tensorboard_writer)

@@ -69,6 +69,7 @@ from trainer.trainer import Trainer
 
 # turn on for debugging C code like Segmentation Faults
 import faulthandler
+
 faulthandler.enable()
 install()
 seaborn.set_theme()
@@ -76,7 +77,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pre-train_CLASS.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pre-train_CLASS_2.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard logdirectory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -147,30 +148,36 @@ def parse_arguments():
     p.add_argument('--model_type', type=str, default='MPNN', help='Classname of one of the models in the models dir')
     p.add_argument('--model_parameters', type=dict, help='dictionary of model parameters')
 
-    p.add_argument('--model3d_type', type=str, default=None, help='Classname of one of the models in the models dir')
-    p.add_argument('--model3d_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--model2_type', type=str, default=None, help='Classname of one of the models in the models dir')
+    p.add_argument('--model2_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--critic_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--critic_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--critic2_type', type=str, default=None, help='Classname of one of the models in the models dir')
+    p.add_argument('--critic2_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--loss_coeff', type=float, default=0.1, help='coefficient of the adversarial loss')
+
     p.add_argument('--trainer', type=str, default='contrastive', help='[contrastive, byol, alternating, philosophy]')
     p.add_argument('--train_sampler', type=str, default=None, help='any of pytorchs samplers or a custom sampler')
 
     p.add_argument('--eval_on_test', type=bool, default=True, help='runs evaluation on test set if true')
     p.add_argument('--force_random_split', type=bool, default=False, help='use random split for ogb')
-    p.add_argument('--reuse_pre_train_data', type=bool, default=False, help='use all data instead of ignoring that used during pre-training')
-    p.add_argument('--transfer_3d', type=bool, default=False, help='set true to load the 3d network instead of the 2d network')
+    p.add_argument('--reuse_pre_train_data', type=bool, default=False,
+                   help='use all data instead of ignoring that used during pre-training')
+    p.add_argument('--transfer_3d', type=bool, default=False,
+                   help='set true to load the 3d network instead of the 2d network')
     return p.parse_args()
 
 
 def get_trainer(args, model, data, device, metrics):
     tensorboard_functions = {function: TENSORBOARD_FUNCTIONS[function] for function in args.tensorboard_functions}
     if args.model2_type:
-        model3d = globals()[args.model2_type](
+        model2 = globals()[args.model2_type](
             node_dim=0,  # 3d model has no input node features
             edge_dim=data[0][1].edata['d'].shape[
                 1] if args.use_e_features and isinstance(data[0][1], dgl.DGLGraph) else 0,
             avg_d=data.avg_degree if hasattr(data, 'avg_degree') else 1,
             **args.model2_parameters)
-        print('model2 trainable params: ', sum(p.numel() for p in model3d.parameters() if p.requires_grad))
+        print('model2 trainable params: ', sum(p.numel() for p in model2.parameters() if p.requires_grad))
 
         critic = None
         if args.trainer == 'byol':
@@ -187,7 +194,8 @@ def get_trainer(args, model, data, device, metrics):
         elif args.trainer == 'class':
             ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
-        return ssl_trainer(model=model, model3d=model3d, critic=critic, args=args, metrics=metrics,
+            critic2 = globals()[args.critic2_type](**args.critic2_parameters)
+        return ssl_trainer(model=model, model2=model2, critic=critic, critic2=critic2, args=args, metrics=metrics,
                            main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
                            critic_loss=globals()[args.critic_loss](**args.critic_loss_params), device=device,
@@ -271,7 +279,7 @@ def train(args):
                     'dimension_covariance': DimensionCovariance()
                     }
     print('using device: ', device)
-    if args.dataset == 'qm9' or args.dataset == 'qm9_rdkit'or args.dataset == 'qm9_neuralconf':
+    if args.dataset == 'qm9' or args.dataset == 'qm9_rdkit' or args.dataset == 'qm9_neuralconf':
         return train_qm9(args, device, metrics_dict)
     elif args.dataset == 'zinc':
         return train_zinc(args, device, metrics_dict)
@@ -290,13 +298,17 @@ def train(args):
     elif 'class' in args.dataset:
         return train_class(args, device, metrics_dict)
 
+
 def train_class(args, device, metrics_dict):
     if args.dataset == 'class_hiv':
         all_data = DglGraphPropPredDataset(name='ogbg-molhiv')
     elif args.dataset == 'class_freesolv':
         all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv')
-
-
+    elif args.dataset == 'class_pcba':
+        all_data = DglGraphPropPredDataset(name='ogbg-molpcba')
+    # TODO: add ZINC
+    # elif args.dataset == 'zinc':
+    #     all_data = [ZINCDataset(train), val, test]
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
     print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
@@ -305,13 +317,23 @@ def train_class(args, device, metrics_dict):
         args.collate_function](**args.collate_params)
     split_idx = all_data.get_idx_split()
     if args.train_sampler != None:
-        sampler = globals()[args.train_sampler](data_source=all_data, batch_size=args.batch_size, indices=split_idx["train"])
-        train_loader = DataLoader(Subset(all_data, split_idx["train"]), batch_sampler=sampler, collate_fn=collate_function)
-    else:
-        train_loader = DataLoader(Subset(all_data, split_idx["train"]), batch_size=args.batch_size, shuffle=True,
+        sampler = globals()[args.train_sampler](data_source=all_data,
+                                                batch_size=args.batch_size,
+                                                indices=split_idx["train"])
+        train_loader = DataLoader(Subset(all_data, split_idx["train"]),
+                                  batch_sampler=sampler,
                                   collate_fn=collate_function)
-    val_loader = DataLoader(Subset(all_data, split_idx["valid"]), batch_size=args.batch_size, collate_fn=collate_function)
-    test_loader = DataLoader(Subset(all_data, split_idx["test"]), batch_size=args.batch_size, collate_fn=collate_function)
+    else:
+        train_loader = DataLoader(Subset(all_data, split_idx["train"]),
+                                  batch_size=args.batch_size,
+                                  shuffle=True,
+                                  collate_fn=collate_function)
+    val_loader = DataLoader(Subset(all_data, split_idx["valid"]),
+                            batch_size=args.batch_size,
+                            collate_fn=collate_function)
+    test_loader = DataLoader(Subset(all_data, split_idx["test"]),
+                             batch_size=args.batch_size,
+                             collate_fn=collate_function)
 
     metrics = {metric: metrics_dict[metric] for metric in args.metrics if metric != 'qm9_properties'}
 
@@ -321,6 +343,7 @@ def train_class(args, device, metrics_dict):
         test_metrics = trainer.evaluation(test_loader, data_split='test')
         return val_metrics, test_metrics, trainer.writer.log_dir
     return val_metrics
+
 
 def train_geomol(args, device, metrics_dict):
     if args.dataset == 'bace_geomol':
@@ -467,8 +490,8 @@ def train_ogbg(args, device, metrics_dict):
     if args.force_random_split == True:
         all_idx = get_random_indices(len(dataset), args.seed_data)
         split_idx["train"] = all_idx[:len(split_idx["train"])]
-        split_idx["train"] = all_idx[len(split_idx["train"]):len(split_idx["train"])+len(split_idx["valid"])]
-        split_idx["train"] = all_idx[len(split_idx["train"])+len(split_idx["valid"]):]
+        split_idx["train"] = all_idx[len(split_idx["train"]):len(split_idx["train"]) + len(split_idx["valid"])]
+        split_idx["train"] = all_idx[len(split_idx["train"]) + len(split_idx["valid"]):]
     collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
         args.collate_function](**args.collate_params)
 
@@ -590,14 +613,14 @@ def train_geom(args, device, metrics_dict):
 def train_qm9(args, device, metrics_dict):
     if args.dataset == 'qm9_rdkit':
         all_data = QM9DatasetRDKITConformers(return_types=args.required_data, target_tasks=args.targets, device=device,
-                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
+                                             dist_embedding=args.dist_embedding, num_radial=args.num_radial)
     elif args.dataset == 'qm9_neuralconf':
 
         all_data = QM9DatasetGeomolConformers(return_types=args.required_data, target_tasks=args.targets, device=device,
-                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
+                                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
     else:
         all_data = QM9Dataset(return_types=args.required_data, target_tasks=args.targets, device=device,
-                          dist_embedding=args.dist_embedding, num_radial=args.num_radial)
+                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
 
     all_idx = get_random_indices(len(all_data), args.seed_data)
     model_idx = all_idx[:100000]
@@ -608,7 +631,7 @@ def train_qm9(args, device, metrics_dict):
     if args.num_val != None:
         train_idx = all_idx[:args.num_train]
         val_idx = all_idx[len(train_idx): len(train_idx) + args.num_val]
-        test_idx = all_idx[len(train_idx) + args.num_val: len(train_idx) + 2*args.num_val]
+        test_idx = all_idx[len(train_idx) + args.num_val: len(train_idx) + 2 * args.num_val]
     # for debugging purposes:
     # test_idx = all_idx[len(model_idx): len(model_idx) + 20]
     # val_idx = all_idx[len(model_idx) + len(test_idx): len(model_idx) + len(test_idx) + 30]
@@ -617,7 +640,6 @@ def train_qm9(args, device, metrics_dict):
     if transfer_from_same_dataset:
         train_idx = model_idx[num_pretrain: num_pretrain + args.num_train]
     print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
-
 
     print(f'Training on {len(train_idx)} samples from the model sequences')
     print(f'Validating on {len(val_idx)} samples')

@@ -27,7 +27,6 @@ class Trainer():
     def __init__(self, model, args, metrics: Dict[str, Callable], main_metric: str, device: torch.device,
                  tensorboard_functions: Dict[str, Callable] = None, optim=None, main_metric_goal: str = 'min',
                  loss_func=torch.nn.MSELoss(), scheduler_step_per_batch: bool = True, run_dir='', sampler=None):
-
         self.args = args
         self.device = device
         self.model = model.to(self.device)
@@ -117,16 +116,18 @@ class Trainer():
     def forward_pass(self, batch):
         targets = batch[-1]  # the last entry of the batch tuple is always the targets
         predictions = self.model(*batch[0])  # foward the rest of the batch to the model
-        loss, *loss_components = self.loss_func(predictions, targets)
+        # loss, *loss_components = self.loss_func(predictions, targets)
+        loss = self.loss_func(predictions, targets)
         # if loss_func does not return any loss_components, we turn the empty list into None
-        return loss, (loss_components if loss_components != [] else None), predictions, targets
+        # return loss, (loss_components if loss_components != [] else None), predictions, targets
+        return loss, {'None': 0}, predictions, targets
 
     def process_batch(self, batch, optim):
         loss, loss_components, predictions, targets = self.forward_pass(batch)
         if optim != None:  # run backpropagation if an optimizer is provided
             loss.backward()
-            if self.args.clip_grad != None:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.args.clip_grad, norm_type=2)
+            # if self.args.clip_grad != None:
+            #     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.args.clip_grad, norm_type=2)
             self.optim.step()
             self.after_optim_step()  # overwrite this function to do stuff before zeroing out grads
             self.optim.zero_grad()
@@ -141,7 +142,8 @@ class Trainer():
         epoch_predictions = []
         epoch_loss = 0
         for i, batch in enumerate(data_loader):
-            *batch, batch_indices = move_to_device(list(batch), self.device)
+            # *batch, batch_indices = move_to_device(list(batch), self.device)
+            batch = move_to_device(list(batch), self.device)
             # loss components is either none, or a dict with the components of the loss function
             loss, loss_components, predictions, targets = self.process_batch(batch, optim)
             with torch.no_grad():
@@ -163,7 +165,7 @@ class Trainer():
                     epoch_loss += loss.item()
                     epoch_targets.extend(targets if isinstance(targets, list) else [targets])
                     epoch_predictions.extend(predictions if isinstance(predictions, list) else [predictions])
-                self.after_batch(predictions, targets, batch_indices)
+                # self.after_batch(predictions, targets, batch_indices)
         if optim == None:
             loader_len = len(data_loader) if len(data_loader) != 0 else 1
             if self.val_per_batch:

@@ -34,13 +34,17 @@ class CLASSLoss(_Loss):
     def __init__(self) -> None:
         super(CLASSLoss, self).__init__()
         self.mse_loss = MSELoss()
-    def forward(self, modelA_out, modelB_out,criticA_out,criticB_out, **kwargs):
+    def forward(self, modelA_out, modelB_out, criticA_out, criticB_out, loss_coeff=0.1, **kwargs):
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
-        modelA_loss = lossAB - lossBA
-        modelB_loss = lossBA - lossAB
-        critic_loss = lossAB + lossBA
-        return modelA_loss, modelB_loss, critic_loss, {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss, 'critic_loss': critic_loss}
+        modelA_loss = lossAB - loss_coeff * lossBA
+        modelB_loss = lossBA - loss_coeff * lossAB
+        criticA_loss = lossAB
+        criticB_loss = lossBA
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
+               {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
+                'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
+                'lossAB': lossAB, 'lossBA': lossBA}
 
 
 class CriticLoss(_Loss):

@@ -12,19 +12,21 @@ from trainer.trainer import Trainer
 
 
 class CLASSTrainer(Trainer):
-    def __init__(self, model, model3d, critic, args, metrics: Dict[str, Callable], main_metric: str,
+    def __init__(self, model, model2, critic, critic2, args, metrics: Dict[str, Callable], main_metric: str,
                  device: torch.device, tensorboard_functions: Dict[str, Callable],
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
                  scheduler_step_per_batch: bool = True, **kwargs):
-        self.model2 = model3d.to(device)  # move to device before loading optim params in super class
+        # move to device before loading optim params in super class
+        # no need to move model because it will be moved in super class call
+        self.model2 = model2.to(device)
         self.critic = critic.to(device)
+        self.critic2 = critic2.to(device)
         super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
-                                                    optim, main_metric_goal, loss_func, scheduler_step_per_batch)
+                                           optim, main_metric_goal, loss_func, scheduler_step_per_batch)
 
         if args.checkpoint:
             checkpoint = torch.load(args.checkpoint, map_location=self.device)
             self.model2.load_state_dict(checkpoint['model2_state_dict'])
-
 
     def forward_pass(self, batch):
         graph = tuple(batch)[0]
@@ -32,36 +34,37 @@ class CLASSTrainer(Trainer):
         modelA_out = self.model(graph)  # foward the rest of the batch to the model
         modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
-        criticB_out = self.critic(modelB_out)
-        modelA_loss, modelB_loss, critic_loss, loss_components = self.loss_func(criticA_out, modelB_out, criticA_out, criticB_out)
+        criticB_out = self.critic2(modelB_out)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(modelA_out, modelB_out,
+                                                                                               criticA_out, criticB_out,
+                                                                                               self.args.loss_coeff)
 
-        return modelA_loss, modelB_loss, critic_loss, (loss_components if loss_components != [] else None), modelA_out, modelB_out
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, (loss_components if loss_components != [] else None), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-
-        modelA_loss, modelB_loss, critic_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(batch)
         if optim != None:  # run backpropagation if an optimizer is provided
-            modelA_loss.backward(inputs=list(self.model.parameters()),
-                                 retain_graph=True)
+            modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
             self.optim.step()
-            modelB_loss.backward(inputs=list(self.model2.parameters()),
-                                 retain_graph=True)
+            modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
             self.optim2.step()
-            critic_loss.backward(inputs=list(self.critic.parameters()))
+            criticA_loss.backward(inputs=list(self.critic.parameters()))
             self.optim_critic.step()
+            criticB_loss.backward(inputs=list(self.critic2.parameters()))
+            self.optim_critic2.step()
 
             self.optim.zero_grad()
             self.optim2.zero_grad()
             self.optim_critic.zero_grad()
+            self.optim_critic2.zero_grad()
             self.optim_steps += 1
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
 
     def initialize_optimizer(self, optim):
-
-        self.optim = optim(self.model.parameters(),**self.args.optimizer_params)
+        self.optim = optim(self.model.parameters(), **self.args.optimizer_params)
         self.optim2 = optim(self.model2.parameters(), **self.args.optimizer2_params)
         self.optim_critic = optim(self.critic.parameters(), **self.args.optimizer_critic_params)
-
+        self.optim_critic2 = optim(self.critic2.parameters(), **self.args.optimizer_critic2_params)
 
     def save_model_state(self, epoch: int, checkpoint_name: str):
         torch.save({
