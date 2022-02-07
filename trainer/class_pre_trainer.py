@@ -37,6 +37,7 @@ class CLASSTrainer(Trainer):
         criticB_out = self.critic2(modelB_out)
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(modelA_out, modelB_out,
                                                                                                criticA_out, criticB_out,
+                                                                                               self.args.output_regularisation,
                                                                                                self.args.loss_coeff)
 
         return modelA_loss, modelB_loss, criticA_loss, criticB_loss, (loss_components if loss_components != [] else None), modelA_out, modelB_out

@@ -154,6 +154,7 @@ def parse_arguments():
     p.add_argument('--critic_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--critic2_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--critic2_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--output_regularisation', type=str, default='sigmoid', help='regularisation method for the models\' outputs')
     p.add_argument('--loss_coeff', type=float, default=0.1, help='coefficient of the adversarial loss')
 
     p.add_argument('--trainer', type=str, default='contrastive', help='[contrastive, byol, alternating, philosophy]')

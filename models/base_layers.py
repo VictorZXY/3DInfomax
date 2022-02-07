@@ -99,15 +99,15 @@ class FCLayer(nn.Module):
 
     def forward(self, x):
         h = self.linear(x)
-        if self.activation is not None:
-            h = self.activation(h)
-        if self.dropout is not None:
-            h = self.dropout(h)
         if self.batch_norm is not None:
             if h.shape[1] != self.out_dim:
                 h = self.batch_norm(h.transpose(1, 2)).transpose(1, 2)
             else:
                 h = self.batch_norm(h)
+        if self.activation is not None:
+            h = self.activation(h)
+        if self.dropout is not None:
+            h = self.dropout(h)
         return h
 
 

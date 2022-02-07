@@ -34,7 +34,24 @@ class CLASSLoss(_Loss):
     def __init__(self) -> None:
         super(CLASSLoss, self).__init__()
         self.mse_loss = MSELoss()
-    def forward(self, modelA_out, modelB_out, criticA_out, criticB_out, loss_coeff=0.1, **kwargs):
+    def forward(self, modelA_out, modelB_out, criticA_out, criticB_out,
+                output_regularisation='sigmoid', loss_coeff=0.1, **kwargs):
+        if output_regularisation == 'sigmoid':
+            modelA_out = torch.sigmoid(modelA_out)
+            modelB_out = torch.sigmoid(modelB_out)
+            criticA_out = torch.sigmoid(criticA_out)
+            criticB_out = torch.sigmoid(criticB_out)
+        elif output_regularisation == 'tanh':
+            modelA_out = torch.tanh(modelA_out)
+            modelB_out = torch.tanh(modelB_out)
+            criticA_out = torch.tanh(criticA_out)
+            criticB_out = torch.tanh(criticB_out)
+        elif output_regularisation == 'norm':
+            modelA_out = F.normalize(modelA_out)
+            modelB_out = F.normalize(modelB_out)
+            criticA_out = F.normalize(criticA_out)
+            criticB_out = F.normalize(criticB_out)
+
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
         modelA_loss = lossAB - loss_coeff * lossBA
@@ -61,7 +78,7 @@ class CriticLoss(_Loss):
 
 class BarlowTwinsLoss(_Loss):
     def __init__(self, scale_loss=1 / 32, lambd=3.9e-3, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
-        "Loss function from the Barlow twins paper from yann lecun"
+        """Loss function from the Barlow twins paper from yann lecun"""
         super(BarlowTwinsLoss, self).__init__()
         self.scale_loss = scale_loss
         self.lambd = lambd
@@ -113,13 +130,13 @@ class CosineSimilarityLoss(_Loss):
 
 
 class RegularizationLoss(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             lambd: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, uniformity_reg=0, variance_reg=1, covariance_reg=0.04) -> None:
         super(RegularizationLoss, self).__init__()
@@ -141,13 +158,13 @@ class RegularizationLoss(_Loss):
 
 
 class NTXent(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXent, self).__init__()
@@ -180,13 +197,13 @@ class NTXent(_Loss):
         return loss
 
 class NTXentAE(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0, reconstruction_reg = 1) -> None:
         super(NTXentAE, self).__init__()
@@ -221,13 +238,13 @@ class NTXentAE(_Loss):
         return loss, self.reconstruction_reg * self.mse_loss(distances, distance_pred)
 
 class NTXentMultiplePositives(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0,
                  conformer_variance_reg=0) -> None:
@@ -240,10 +257,10 @@ class NTXentMultiplePositives(_Loss):
         self.conformer_variance_reg = conformer_variance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, metric_dim = z1.size()
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -276,13 +293,13 @@ class NTXentMultiplePositives(_Loss):
 
 
 class KLDivergenceMultiplePositives(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = False, tau: float = 0.5, uniformity_reg=0, variance_reg=0,
                  covariance_reg=0) -> None:
@@ -294,10 +311,10 @@ class KLDivergenceMultiplePositives(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim*2
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
 
@@ -332,13 +349,13 @@ class KLDivergenceMultiplePositives(_Loss):
 
 
 class JSDMultiplePositivesLoss(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(JSDMultiplePositivesLoss, self).__init__()
@@ -349,10 +366,10 @@ class JSDMultiplePositivesLoss(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim*2
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
 
@@ -438,10 +455,10 @@ class NTXentMMDSeparate2D(_Loss):
         return sum(kernel_val)
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim * num_conformers
         :param z2: batchsize * num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
         z1 = z1.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -494,13 +511,13 @@ class NTXentMMDSeparate2D(_Loss):
 
 
 class KLDivergenceMultiplePositivesV2(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(KLDivergenceMultiplePositivesV2, self).__init__()
@@ -511,10 +528,10 @@ class KLDivergenceMultiplePositivesV2(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim*2
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
 
@@ -552,13 +569,13 @@ class KLDivergenceMultiplePositivesV2(_Loss):
 
 
 class NTXentLikelihoodLoss(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0,
                  conformer_variance_reg=0) -> None:
@@ -571,10 +588,10 @@ class NTXentLikelihoodLoss(_Loss):
         self.conformer_variance_reg = conformer_variance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim*2
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
 
@@ -613,13 +630,13 @@ class NTXentLikelihoodLoss(_Loss):
 
 
 class NTXentMultiplePositivesV2(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXentMultiplePositivesV2, self).__init__()
@@ -630,10 +647,10 @@ class NTXentMultiplePositivesV2(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batch_size, metric dim
         :param z2: batch_size*num_conformers, metric dim
-        '''
+        """
         batch_size, metric_dim = z1.size()
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
 
@@ -661,13 +678,13 @@ class NTXentMultiplePositivesV2(_Loss):
 
 
 class NTXentMultiplePositivesV3(_Loss):
-    '''
+    """
         Just have the multiple positives as extra loss terms over which we take the mean in the end
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXentMultiplePositivesV3, self).__init__()
@@ -678,10 +695,10 @@ class NTXentMultiplePositivesV3(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim
         :param z2: batchsize*num_conformers, metric dim
-        '''
+        """
         batch_size, metric_dim = z1.size()
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
 
@@ -707,13 +724,13 @@ class NTXentMultiplePositivesV3(_Loss):
 
 
 class NTXentMultiplePositivesSeparate2D(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXentMultiplePositivesSeparate2D, self).__init__()
@@ -724,10 +741,10 @@ class NTXentMultiplePositivesSeparate2D(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim * num_conformers
         :param z2: batchsize * num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
         z1 = z1.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -762,13 +779,13 @@ class NTXentMultiplePositivesSeparate2D(_Loss):
 
 
 class NTXentMinimumMatching(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXentMinimumMatching, self).__init__()
@@ -779,10 +796,10 @@ class NTXentMinimumMatching(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim * num_conformers
         :param z2: batchsize * num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
         z1 = z1.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -812,13 +829,13 @@ class NTXentMinimumMatching(_Loss):
 
 
 class MaximumSimilarityMSE(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(MaximumSimilarityMSE, self).__init__()
@@ -830,10 +847,10 @@ class MaximumSimilarityMSE(_Loss):
         self.mse_loss = torch.nn.MSELoss(reduction='none')
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim * num_conformers
         :param z2: batchsize * num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
         z1 = z1.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -854,13 +871,13 @@ class MaximumSimilarityMSE(_Loss):
         return loss
 
 class NTXentMaximumSimilarity(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(NTXentMaximumSimilarity, self).__init__()
@@ -871,10 +888,10 @@ class NTXentMaximumSimilarity(_Loss):
         self.covariance_reg = covariance_reg
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim * num_conformers
         :param z2: batchsize * num_conformers, metric dim
-        '''
+        """
         batch_size, _ = z1.size()
         _, metric_dim = z2.size()
         z1 = z1.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
@@ -904,13 +921,13 @@ class NTXentMaximumSimilarity(_Loss):
 
 
 class NTXentExtraNegatives(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0,
                  extra_negatives_weight=1) -> None:
@@ -923,10 +940,10 @@ class NTXentExtraNegatives(_Loss):
         self.extra_negatives_weight = extra_negatives_weight
 
     def forward(self, z1, z2, **kwargs) -> Tensor:
-        '''
+        """
         :param z1: batchsize, metric dim
         :param z2: batchsize*( 1 + num_extra_negatives), metric dim
-        '''
+        """
         batch_size, metric_dim = z1.size()
         extra_negatives = z2[batch_size:]  # [batchsize * num_extra_neg, metric_dim]
         z2 = z2[:batch_size]  # [batchsize, metric_dim]
@@ -982,13 +999,13 @@ def std_loss(x):
 
 
 class NTXentShuffled(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5) -> None:
         super(NTXentShuffled, self).__init__()
@@ -1013,13 +1030,13 @@ class NTXentShuffled(_Loss):
 
 
 class InfoNCE(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0) -> None:
         super(InfoNCE, self).__init__()
@@ -1052,14 +1069,14 @@ class InfoNCE(_Loss):
 
 
 class InfoNCEHard(_Loss):
-    '''
+    """
         InfoNCE
         with the adaptation of the 'Contrastive Learning with Hard Negative Samples' paper https://openreview.net/forum?id=CR1XOQ0UTh-
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = False, tau: float = 0.5, tau_plus=0.1, beta=0.5) -> None:
         super(InfoNCEHard, self).__init__()
@@ -1092,14 +1109,14 @@ class InfoNCEHard(_Loss):
 
 
 class NTXentHard(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         with the adaptation of the 'Contrastive Learning with Hard Negative Samples' paper https://openreview.net/forum?id=CR1XOQ0UTh-
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5, tau_plus=0.1, beta=0.1) -> None:
         super(NTXentHard, self).__init__()
@@ -1132,13 +1149,13 @@ class NTXentHard(_Loss):
 
 
 class NTXentLocalGlobal(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, norm: bool = True, tau: float = 0.5) -> None:
         super(NTXentLocalGlobal, self).__init__()
@@ -1146,12 +1163,12 @@ class NTXentLocalGlobal(_Loss):
         self.tau = tau
 
     def forward(self, zn, zg, nodes_per_graph) -> Tensor:
-        '''
+        """
         Args:
             zg: Tensor of shape [n_graphs, z_dim].
             zn: Tensor of shape [n_nodes, z_dim].
             batch: Tensor of shape [n_graphs].
-        '''
+        """
         num_graphs = zg.shape[0]
         num_nodes = zn.shape[0]
         node_indices = torch.cumsum(nodes_per_graph, dim=0)
@@ -1179,37 +1196,37 @@ class NTXentLocalGlobal(_Loss):
 
 
 class NTXentGlobalLocal(_Loss):
-    '''
+    """
         this is just the NTXentLocalGlobal with arguments switched around
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, **kwargs) -> None:
         super(NTXentGlobalLocal, self).__init__()
         self.ntxent_local_global = NTXentLocalGlobal(**kwargs)
 
     def forward(self, zg, zn, nodes_per_graph) -> Tensor:
-        '''
+        """
         Args:
             zg: Tensor of shape [n_graphs, z_dim].
             zn: Tensor of shape [n_nodes, z_dim].
             batch: Tensor of shape [n_graphs].
-        '''
+        """
 
         return self.ntxent_local_global(zn, zg, nodes_per_graph)
 
 
 class SampleLossWrapper(_Loss):
-    '''
+    """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
         Args:
             z1, z2: Tensor of shape [batch_size, z_dim]
             tau: Float. Usually in (0,1].
             norm: Boolean. Whether to apply normlization.
-        '''
+    """
 
     def __init__(self, loss_func, fraction_samples=0.1) -> None:
         super(SampleLossWrapper, self).__init__()
@@ -1239,12 +1256,12 @@ class JSELossLocalGlobal(_Loss):
         super(JSELossLocalGlobal, self).__init__()
 
     def forward(self, z_n, z_g, graph: dgl.DGLGraph) -> Tensor:
-        '''
+        """
         Args:
             z_g: Tensor of shape [n_graphs, z_dim].
             z_n: Tensor of shape [n_nodes, z_dim].
             batch: Tensor of shape [n_graphs].
-        '''
+        """
         # TODO: this doesn not work yet
         raise NotImplementedError('not done')
         device = z_g.device
@@ -1273,14 +1290,14 @@ class JSELoss(_Loss):
         self.neg_by_crpt = neg_by_crpt
 
     def forward(self, zs, zs_n=None, batch=None, sigma=None) -> Tensor:
-        '''
+        """
            Args:
                zs: List of tensors of shape [n_views, batch_size, z_dim].
                zs_n: List of tensors of shape [n_views, nodes, z_dim].
                sigma: 2D-array of shape [n_views, n_views] with boolean values.
                    Only required when n_views > 2. If sigma_ij = True, then compute
                    infoNCE between view_i and view_j.
-           '''
+        """
         if zs_n is not None:
             assert len(zs_n) == len(zs)
             assert batch is not None
@@ -1316,11 +1333,11 @@ class JSELoss(_Loss):
 
 
 def JSE_local_global_negative_paired(z_g, z_n, batch):
-    '''
+    """
     Args:
         z_g: of size [2*n_batch, dim]
         z_n: of size [2*n_batch*nodes_per_batch, dim]
-    '''
+    """
     device = z_g.device
     num_graphs = int(z_g.shape[0] / 2)  # 4
     num_nodes = int(z_n.shape[0] / 2)  # 4*2000
@@ -1345,12 +1362,12 @@ def JSE_local_global_negative_paired(z_g, z_n, batch):
 
 
 def JSE_local_global(z_g, z_n, batch, measure: str = 'JSD'):
-    '''
+    """
     Args:
         z_g: Tensor of shape [n_graphs, z_dim].
         z_n: Tensor of shape [n_nodes, z_dim].
         batch: Tensor of shape [n_graphs].
-    '''
+    """
     device = z_g.device
     num_graphs = z_g.shape[0]
     num_nodes = z_n.shape[0]
@@ -1371,10 +1388,10 @@ def JSE_local_global(z_g, z_n, batch, measure: str = 'JSD'):
 
 
 def JSE_global_global(z1, z2, measure: str = 'JSD'):
-    '''
+    """
     Args:
         z1, z2: Tensor of shape [batch_size, z_dim].
-    '''
+    """
     device = z1.device
     num_graphs = z1.shape[0]
 
@@ -1394,13 +1411,13 @@ def JSE_global_global(z1, z2, measure: str = 'JSD'):
 
 
 def get_expectation(masked_d_prime, positive=True):
-    '''
+    """
     Args:
         masked_d_prime: Tensor of shape [n_graphs, n_graphs] for global_global,
                         tensor of shape [n_nodes, n_graphs] for local_global.
         positive (bool): Set True if the d_prime is masked for positive pairs,
                         set False for negative pairs.
-    '''
+    """
     log_2 = np.log(2.)
     if positive:
         score = log_2 - F.softplus(-masked_d_prime)
