@@ -1,4 +1,4 @@
-experiment_name: 'pre_train_ogbg_molpcba_loss_coeff_0.1_batch_512'
+experiment_name: 'pre_train_ogbg_molpcba_loss_coeff_0.5_batch_512'
 
 trainer: class
 dataset: class_pcba
@@ -33,7 +33,7 @@ optimizer_critic2_params:
   lr: 8.0e-5
 
 output_regularisation: 'sigmoid'
-loss_coeff: 1.0
+loss_coeff: 0.5
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper
