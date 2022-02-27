@@ -37,8 +37,8 @@ class CLASSTrainer(Trainer):
         modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
-        decoderA_out = self.decoder(graph) if self.decoder else None
-        decoderB_out = self.decoder2(graph) if self.decoder2 else None
+        decoderA_out = self.decoder(modelA_out) if self.decoder else None
+        decoderB_out = self.decoder2(modelB_out) if self.decoder2 else None
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(
             modelA_out, modelB_out, criticA_out, criticB_out, decoderA_out, decoderB_out, graph, graph_copy,
             self.args.output_regularisation, self.args.loss_coeff1, self.args.loss_coeff2)
