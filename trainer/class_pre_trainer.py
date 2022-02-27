@@ -3,7 +3,9 @@ import os
 from itertools import chain
 from typing import Union, Tuple, Dict, Callable
 
+import numpy as np
 import torch
+from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
 
 from commons.utils import move_to_device
@@ -78,13 +80,33 @@ class CLASSTrainer(Trainer):
 
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
 
+    def run_per_epoch_evaluations(self, data_loader):
+        print('computing PCA explained variance')
+        representations = []
+        targets = []
+        for batch in data_loader:
+            batch = [element.to(self.device) for element in batch]
+            _, _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
+            representations.append(modelA_out)
+            targets.append(modelB_out)
+        representations = torch.cat(representations, dim=0)
+        targets = torch.cat(targets, dim=0)
+        for n_components in [8, 16]:
+            for name, X in [('pred', representations), ('targets', targets)]:
+                pca = PCA(n_components=n_components)
+                pca.fit_transform(X)
+                total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
+                self.writer.add_scalar(f'PCA{n_components}_explained_variance_{name}', total_explained_var_ratio, self.optim_steps)
+        print('finish computing PCA explained variance')
+
+
     def initialize_optimizer(self, optim):
         self.optim = optim(self.model.parameters(), **self.args.optimizer_params)
         self.optim2 = optim(self.model2.parameters(), **self.args.optimizer2_params)
         self.optim_critic = optim(self.critic.parameters(), **self.args.optimizer_critic_params)
         self.optim_critic2 = optim(self.critic2.parameters(), **self.args.optimizer_critic2_params)
         self.optim_decoder = optim(self.decoder.parameters(), **self.args.optimizer_decoder_params) if self.decoder else None
-        self.optim_decoder2 = optim(self.decoder2.parameters(), **self.args.optimizer_cdecoder2_params) if self.decoder2 else None
+        self.optim_decoder2 = optim(self.decoder2.parameters(), **self.args.optimizer_decoder2_params) if self.decoder2 else None
 
     def save_model_state(self, epoch: int, checkpoint_name: str):
         torch.save({
