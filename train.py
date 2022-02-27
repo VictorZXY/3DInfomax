@@ -155,9 +155,7 @@ def parse_arguments():
     p.add_argument('--critic2_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--critic2_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--decoder_type', type=str, default=None, help='Classname of one of the models in the models dir')
-    p.add_argument('--decoder_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--decoder2_type', type=str, default=None, help='Classname of one of the models in the models dir')
-    p.add_argument('--decoder2_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--output_regularisation', type=str, default='sigmoid', help='regularisation method for the models\' outputs')
     p.add_argument('--loss_coeff1', type=float, default=1.0, help='coefficient of the cooperative loss')
     p.add_argument('--loss_coeff2', type=float, default=0.5, help='coefficient of the adversarial loss')
@@ -201,8 +199,8 @@ def get_trainer(args, model, data, device, metrics):
             ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
             critic2 = globals()[args.critic2_type](**args.critic2_parameters)
-            decoder = globals()[args.decoder_type](**args.decoder_parameters)
-            decoder2 = globals()[args.decoder2_type](**args.decoder2_parameters)
+            decoder = globals()[args.decoder_type]()
+            decoder2 = globals()[args.decoder2_type]()
         return ssl_trainer(model=model, model2=model2, critic=critic, critic2=critic2, decoder=decoder, decoder2=decoder2,
                            args=args, metrics=metrics, main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
