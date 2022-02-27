@@ -1,8 +1,8 @@
-experiment_name: 'pre_train_ogbg_molpcba_loss_coeff_0.5_batch_512'
+experiment_name: 'pre-train_PNA_hidden_dim_64vs32_decoder'
 
 trainer: class
 dataset: class_pcba
-num_epochs: 10
+num_epochs: 50
 batch_size: 512
 log_iterations: 1
 patience: 10000 # for early stopping etc
@@ -32,8 +32,17 @@ optimizer_critic2: Adam
 optimizer_critic2_params:
   lr: 8.0e-5
 
+optimizer_decoder: Adam
+optimizer_decoder_params:
+  lr: 8.0e-5
+
+optimizer_decoder2: Adam
+optimizer_decoder2_params:
+  lr: 8.0e-5
+
 output_regularisation: 'sigmoid'
-loss_coeff: 0.5
+loss_coeff1: 1.0
+loss_coeff2: 0.5
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper
@@ -52,8 +61,8 @@ loss_coeff: 0.5
 # Model parameters
 model_type: 'PNA'
 model_parameters:
-  target_dim: 32
-  hidden_dim: 20
+  target_dim: 256
+  hidden_dim: 64
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
@@ -63,9 +72,16 @@ model_parameters:
   dropout: 0.0
   aggregators:
     - mean
+    - max
+    - min
+    - std
   scalers:
     - identity
+    - amplification
+    - attenuation
   readout_aggregators:
+    - min
+    - max
     - mean
   pretrans_layers: 2
   posttrans_layers: 1
@@ -74,8 +90,8 @@ model_parameters:
 # Model parameters
 model2_type: 'PNA'
 model2_parameters:
-  target_dim: 32
-  hidden_dim: 10
+  target_dim: 256
+  hidden_dim: 32
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
@@ -85,9 +101,16 @@ model2_parameters:
   dropout: 0.0
   aggregators:
     - mean
+    - max
+    - min
+    - std
   scalers:
     - identity
+    - amplification
+    - attenuation
   readout_aggregators:
+    - min
+    - max
     - mean
   pretrans_layers: 2
   posttrans_layers: 1
@@ -96,18 +119,24 @@ model2_parameters:
 # Model parameters
 critic_type: 'BasicCritic'
 critic_parameters:
-  in_dim: 32
-  out_dim: 32
-  hidden_dim: 32
-  layers: 1
+  in_dim: 256
+  out_dim: 256
+  hidden_dim: 256
+  layers: 2
 
 # Model parameters
 critic2_type: 'BasicCritic'
 critic2_parameters:
-  in_dim: 32
-  out_dim: 32
-  hidden_dim: 32
-  layers: 1
+  in_dim: 256
+  out_dim: 256
+  hidden_dim: 256
+  layers: 2
+
+# Model parameters
+decoder_type: 'BasicDecoder'
+
+# Model parameters
+decoder2_type: 'BasicDecoder'
 
 # continue training from checkpoint:
 #checkpoint: runs/PNAReadout_2_layer_03-04_15-29-07/last_checkpoint.pt

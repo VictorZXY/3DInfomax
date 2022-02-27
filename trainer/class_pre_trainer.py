@@ -13,7 +13,7 @@ from trainer.trainer import Trainer
 
 class CLASSTrainer(Trainer):
     def __init__(self, model, model2, critic, critic2, args, metrics: Dict[str, Callable], main_metric: str,
-                 device: torch.device, tensorboard_functions: Dict[str, Callable],
+                 device: torch.device, tensorboard_functions: Dict[str, Callable], decoder=None, decoder2=None,
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
                  scheduler_step_per_batch: bool = True, **kwargs):
         # move to device before loading optim params in super class
@@ -21,6 +21,8 @@ class CLASSTrainer(Trainer):
         self.model2 = model2.to(device)
         self.critic = critic.to(device)
         self.critic2 = critic2.to(device)
+        self.decoder = decoder.to(device) if decoder else None
+        self.decoder2 = decoder2.to(device) if decoder2 else None
         super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
                                            optim, main_metric_goal, loss_func, scheduler_step_per_batch)
 
@@ -35,15 +37,18 @@ class CLASSTrainer(Trainer):
         modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(modelA_out, modelB_out,
-                                                                                               criticA_out, criticB_out,
-                                                                                               self.args.output_regularisation,
-                                                                                               self.args.loss_coeff)
+        decoderA_out = self.decoder(graph) if self.decoder else None
+        decoderB_out = self.decoder2(graph) if self.decoder2 else None
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components = self.loss_func(
+            modelA_out, modelB_out, criticA_out, criticB_out, decoderA_out, decoderB_out, graph, graph_copy,
+            self.args.output_regularisation, self.args.loss_coeff1, self.args.loss_coeff2)
 
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, (loss_components if loss_components != [] else None), modelA_out, modelB_out
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
+               (loss_components if loss_components != [] else None), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+
         if optim != None:  # run backpropagation if an optimizer is provided
             modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
             self.optim.step()
@@ -53,12 +58,24 @@ class CLASSTrainer(Trainer):
             self.optim_critic.step()
             criticB_loss.backward(inputs=list(self.critic2.parameters()))
             self.optim_critic2.step()
+            if decoderA_loss:
+                decoderA_loss.backward(inputs=list(self.decoder.parameters()))
+                self.optim_decoder.step()
+            if decoderB_loss:
+                decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
+                self.optim_decoder2.step()
 
             self.optim.zero_grad()
             self.optim2.zero_grad()
             self.optim_critic.zero_grad()
             self.optim_critic2.zero_grad()
+            if decoderA_loss:
+                self.optim_decoder.zero_grad()
+            if decoderB_loss:
+                self.optim_decoder2.zero_grad()
+
             self.optim_steps += 1
+
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
 
     def initialize_optimizer(self, optim):
@@ -66,6 +83,8 @@ class CLASSTrainer(Trainer):
         self.optim2 = optim(self.model2.parameters(), **self.args.optimizer2_params)
         self.optim_critic = optim(self.critic.parameters(), **self.args.optimizer_critic_params)
         self.optim_critic2 = optim(self.critic2.parameters(), **self.args.optimizer_critic2_params)
+        self.optim_decoder = optim(self.decoder.parameters(), **self.args.optimizer_decoder_params) if self.decoder else None
+        self.optim_decoder2 = optim(self.decoder2.parameters(), **self.args.optimizer_cdecoder2_params) if self.decoder2 else None
 
     def save_model_state(self, epoch: int, checkpoint_name: str):
         torch.save({
