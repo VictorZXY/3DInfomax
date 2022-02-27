@@ -73,8 +73,7 @@ class CLASSLoss(_Loss):
         criticA_loss = lossAB
         criticB_loss = lossBA
 
-
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
                {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
                 'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
                 'decoderA_loss': decoderA_loss or 0.0, 'decoderB_loss': decoderB_loss or 0.0,

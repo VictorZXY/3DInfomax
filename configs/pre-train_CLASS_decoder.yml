@@ -32,14 +32,6 @@ optimizer_critic2: Adam
 optimizer_critic2_params:
   lr: 8.0e-5
 
-optimizer_decoder: Adam
-optimizer_decoder_params:
-  lr: 8.0e-5
-
-optimizer_decoder2: Adam
-optimizer_decoder2_params:
-  lr: 8.0e-5
-
 output_regularisation: 'sigmoid'
 loss_coeff1: 1.0
 loss_coeff2: 0.5
