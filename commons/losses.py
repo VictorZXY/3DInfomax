@@ -73,27 +73,12 @@ class CLASSLoss(_Loss):
         criticA_loss = lossAB
         criticB_loss = lossBA
 
-        if decoderA_loss and decoderB_loss:
-            return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
-                   {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
-                    'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                    'decoderA_loss': decoderA_loss, 'decoderB_loss': decoderB_loss,
-                    'lossAB': lossAB, 'lossBA': lossBA}
-        elif decoderA_loss is None:
-            return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
-                   {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
-                    'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                    'decoderB_loss': decoderB_loss, 'lossAB': lossAB, 'lossBA': lossBA}
-        elif decoderB_loss is None:
-            return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
-                   {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
-                    'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                    'decoderA_loss': decoderA_loss, 'lossAB': lossAB, 'lossBA': lossBA}
-        else:
-            return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
-                   {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
-                    'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                    'lossAB': lossAB, 'lossBA': lossBA}
+
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
+               {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
+                'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
+                'decoderA_loss': decoderA_loss or 0.0, 'decoderB_loss': decoderB_loss or 0.0,
+                'lossAB': lossAB, 'lossBA': lossBA}
 
 
 class CriticLoss(_Loss):
