@@ -3,7 +3,6 @@ import os
 from itertools import chain
 from typing import Union, Tuple, Dict, Callable
 
-import numpy as np
 import torch
 from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
@@ -95,7 +94,7 @@ class CLASSTrainer(Trainer):
             for name, X in [('pred', representations), ('targets', targets)]:
                 pca = PCA(n_components=n_components)
                 pca.fit_transform(X)
-                total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
+                total_explained_var_ratio = torch.sum(torch.tensor(pca.explained_variance_ratio_))
                 self.writer.add_scalar(f'PCA{n_components}_explained_variance_{name}', total_explained_var_ratio, self.optim_steps)
         print('finish computing PCA explained variance')
 
