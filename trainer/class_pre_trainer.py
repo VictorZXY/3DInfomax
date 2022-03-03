@@ -3,6 +3,7 @@ import os
 from itertools import chain
 from typing import Union, Tuple, Dict, Callable
 
+import numpy as np
 import torch
 from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
@@ -51,31 +52,61 @@ class CLASSTrainer(Trainer):
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components, predictions, targets = self.forward_pass(batch)
 
         if optim != None:  # run backpropagation if an optimizer is provided
-            modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
-            self.optim.step()
-            modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
-            self.optim2.step()
-            criticA_loss.backward(inputs=list(self.critic.parameters()))
-            self.optim_critic.step()
-            criticB_loss.backward(inputs=list(self.critic2.parameters()))
-            self.optim_critic2.step()
-            if decoderA_loss:
-                decoderA_loss.backward(inputs=list(self.decoder.parameters()))
-                self.optim_decoder.step()
-            if decoderB_loss:
-                decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
-                self.optim_decoder2.step()
+            if self.args.iterations_per_model == 0:
+                modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
+                self.optim.step()
+                modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
+                self.optim2.step()
+                criticA_loss.backward(inputs=list(self.critic.parameters()))
+                self.optim_critic.step()
+                criticB_loss.backward(inputs=list(self.critic2.parameters()))
+                self.optim_critic2.step()
+                if decoderA_loss:
+                    decoderA_loss.backward(inputs=list(self.decoder.parameters()))
+                    self.optim_decoder.step()
+                    self.optim_decoder.zero_grad()
+                if decoderB_loss:
+                    decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
+                    self.optim_decoder2.step()
+                    self.optim_decoder2.zero_grad()
 
-            self.optim.zero_grad()
-            self.optim2.zero_grad()
-            self.optim_critic.zero_grad()
-            self.optim_critic2.zero_grad()
-            if decoderA_loss:
-                self.optim_decoder.zero_grad()
-            if decoderB_loss:
-                self.optim_decoder2.zero_grad()
+                self.optim.zero_grad()
+                self.optim2.zero_grad()
+                self.optim_critic.zero_grad()
+                self.optim_critic2.zero_grad()
 
-            self.optim_steps += 1
+                self.optim_steps += 1
+
+            else:
+                if (self.optim_steps // self.args.iterations_per_model) % 2 == 0:
+                    modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
+                    self.optim.step()
+                    criticA_loss.backward(inputs=list(self.critic.parameters()))
+                    self.optim_critic.step()
+                    if decoderA_loss:
+                        decoderA_loss.backward(inputs=list(self.decoder.parameters()))
+                        self.optim_decoder.step()
+                        self.optim_decoder.zero_grad()
+
+                    self.optim.zero_grad()
+                    self.optim_critic.zero_grad()
+
+                    self.optim_steps += 1
+
+                else:
+                    modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
+                    self.optim2.step()
+                    criticB_loss.backward(inputs=list(self.critic2.parameters()))
+                    self.optim_critic2.step()
+                    if decoderB_loss:
+                        decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
+                        self.optim_decoder2.step()
+                        self.optim_decoder2.zero_grad()
+
+                    self.optim2.zero_grad()
+                    self.optim_critic2.zero_grad()
+
+                    self.optim_steps += 1
 
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
 
@@ -93,8 +124,8 @@ class CLASSTrainer(Trainer):
         for n_components in [8, 16]:
             for name, X in [('pred', representations), ('targets', targets)]:
                 pca = PCA(n_components=n_components)
-                pca.fit_transform(X)
-                total_explained_var_ratio = torch.sum(torch.tensor(pca.explained_variance_ratio_))
+                pca.fit_transform(X.cpu())
+                total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
                 self.writer.add_scalar(f'PCA{n_components}_explained_variance_{name}', total_explained_var_ratio, self.optim_steps)
         print('finish computing PCA explained variance')
 
