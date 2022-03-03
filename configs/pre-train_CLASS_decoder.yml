@@ -5,6 +5,8 @@ dataset: class_pcba
 num_epochs: 50
 batch_size: 512
 log_iterations: 1
+eval_per_epochs: 1
+iterations_per_model: 10
 patience: 10000 # for early stopping etc
 loss_func: CLASSLoss
 num_train: 50000
@@ -30,14 +32,6 @@ optimizer_critic_params:
 
 optimizer_critic2: Adam
 optimizer_critic2_params:
-  lr: 8.0e-5
-
-optimizer_decoder: Adam
-optimizer_decoder_params:
-  lr: 8.0e-5
-
-optimizer_decoder2: Adam
-optimizer_decoder2_params:
   lr: 8.0e-5
 
 output_regularisation: 'sigmoid'
@@ -67,7 +61,7 @@ model_parameters:
   last_batch_norm: True
   readout_batchnorm: True
   # e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum   =>  e^(log(0.001)/100) = 0.970
-  batch_norm_momentum: 0.93
+  #batch_norm_momentum: 0.93
   readout_layers: 2
   dropout: 0.0
   aggregators:
@@ -96,7 +90,7 @@ model2_parameters:
   last_batch_norm: True
   readout_batchnorm: True
   # e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum   =>  e^(log(0.001)/100) = 0.970
-  batch_norm_momentum: 0.93
+  #batch_norm_momentum: 0.93
   readout_layers: 2
   dropout: 0.0
   aggregators:
