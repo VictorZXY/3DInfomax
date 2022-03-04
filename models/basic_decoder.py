@@ -5,7 +5,6 @@ import torch.nn as nn
 
 
 class BasicDecoder(nn.Module):
-
     def __init__(self, **kwargs):
         super(BasicDecoder, self).__init__()
         self.decoder = nn.Sigmoid()

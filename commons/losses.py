@@ -36,7 +36,8 @@ class CLASSLoss(_Loss):
         self.mse_loss = MSELoss()
     def forward(self, modelA_out, modelB_out, criticA_out, criticB_out,
                 decoderA_out=None, decoderB_out=None, graphA=None, graphB=None,
-                output_regularisation='sigmoid', loss_coeff1=1.0, loss_coeff2=0.5, **kwargs):
+                output_regularisation='sigmoid', loss_coeff1=1.0, loss_coeff2=0.5,
+                device=torch.device('cuda'), **kwargs):
         if output_regularisation == 'sigmoid':
             modelA_out = torch.sigmoid(modelA_out)
             modelB_out = torch.sigmoid(modelB_out)
@@ -56,28 +57,27 @@ class CLASSLoss(_Loss):
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
 
-        if decoderA_out:
-            decoderA_loss = self.mse_loss(decoderA_out, graphA)
+        if decoderA_out is not None:
+            decoderA_loss = self.mse_loss(decoderA_out, graphA.adjacency_matrix().to_dense().to(device))
             modelA_loss = decoderA_loss + loss_coeff1 * lossAB - loss_coeff2 * lossBA
         else:
-            decoderA_loss = None
+            decoderA_loss = 0.0
             modelA_loss = lossAB - loss_coeff2 * lossBA
 
-        if decoderB_out:
-            decoderB_loss = self.mse_loss(decoderB_out, graphB)
+        if decoderB_out is not None:
+            decoderB_loss = self.mse_loss(decoderB_out, graphB.adjacency_matrix().to_dense().to(device))
             modelB_loss = decoderB_loss + loss_coeff1 * lossBA - loss_coeff2 * lossAB
         else:
-            decoderB_loss = None
+            decoderB_loss = 0.0
             modelB_loss = lossBA - loss_coeff2 * lossAB
 
         criticA_loss = lossAB
         criticB_loss = lossBA
 
-
         return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
                {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
                 'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                'decoderA_loss': decoderA_loss or 0.0, 'decoderB_loss': decoderB_loss or 0.0,
+                'decoderA_loss': decoderA_loss, 'decoderB_loss': decoderB_loss,
                 'lossAB': lossAB, 'lossBA': lossBA}
 
 

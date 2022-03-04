@@ -133,7 +133,7 @@ class PNA(nn.Module):
         self.node_gnn(graph)
         readouts_to_cat = [dgl.readout_nodes(graph, 'feat', op=aggr) for aggr in self.readout_aggregators]
         readout = torch.cat(readouts_to_cat, dim=-1)
-        return self.output(readout)
+        return graph.ndata['feat'], self.output(readout)
 
 
 class PNAGNN(nn.Module):

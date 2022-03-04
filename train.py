@@ -109,6 +109,7 @@ def parse_arguments():
                    help='frequency with which to do expensive logging operations')
     p.add_argument('--eval_per_epochs', type=int, default=0,
                    help='frequency with which to do run the function run_eval_per_epoch that can do some expensive calculations on the val set or sth like that. If this is zero, then the function will never be called')
+    p.add_argument('--iterations_per_model', type=int, default=0, help='frequency with which to train each pair')
     p.add_argument('--linear_probing_samples', type=int, default=500,
                    help='number of samples to use for linear probing in the run_eval_per_epoch function of the self supervised trainer')
     p.add_argument('--num_conformers', type=int, default=3,
@@ -155,9 +156,9 @@ def parse_arguments():
     p.add_argument('--critic2_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--critic2_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--decoder_type', type=str, default=None, help='Classname of one of the models in the models dir')
-    p.add_argument('--decoder_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--decoder_parameters', type=dict, default={}, help='dictionary of model parameters')
     p.add_argument('--decoder2_type', type=str, default=None, help='Classname of one of the models in the models dir')
-    p.add_argument('--decoder2_parameters', type=dict, help='dictionary of model parameters')
+    p.add_argument('--decoder2_parameters', type=dict, default={}, help='dictionary of model parameters')
     p.add_argument('--output_regularisation', type=str, default='sigmoid', help='regularisation method for the models\' outputs')
     p.add_argument('--loss_coeff1', type=float, default=1.0, help='coefficient of the cooperative loss')
     p.add_argument('--loss_coeff2', type=float, default=0.5, help='coefficient of the adversarial loss')
@@ -201,8 +202,8 @@ def get_trainer(args, model, data, device, metrics):
             ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
             critic2 = globals()[args.critic2_type](**args.critic2_parameters)
-            decoder = globals()[args.decoder_type](**args.decoder_parameters)
-            decoder2 = globals()[args.decoder2_type](**args.decoder2_parameters)
+            decoder = globals()[args.decoder_type](**args.decoder_parameters) if args.decoder_type else None
+            decoder2 = globals()[args.decoder2_type](**args.decoder2_parameters) if args.decoder2_type else None
         return ssl_trainer(model=model, model2=model2, critic=critic, critic2=critic2, decoder=decoder, decoder2=decoder2,
                            args=args, metrics=metrics, main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
@@ -315,7 +316,7 @@ def train_class(args, device, metrics_dict):
     elif args.dataset == 'class_pcba':
         all_data = DglGraphPropPredDataset(name='ogbg-molpcba')
     # TODO: add ZINC
-    # elif args.dataset == 'zinc':
+    # elif args.dataset == 'class_zinc':
     #     all_data = [ZINCDataset(train), val, test]
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
@@ -717,8 +718,8 @@ if __name__ == '__main__':
                 args_copy = get_arguments()
                 args_copy.seed = seed
                 futures.append(executor.submit(train, args_copy))
-            results = [f.result() for f in
-                       futures]  # list of tuples of dictionaries with the validation results first and the test results second
+            # list of tuples of dictionaries with the validation results first and the test results second
+            results = [f.result() for f in futures]
         all_val_metrics = defaultdict(list)
         all_test_metrics = defaultdict(list)
         log_dirs = []

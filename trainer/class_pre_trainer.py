@@ -82,15 +82,15 @@ class CLASSTrainer(Trainer):
     def forward_pass(self, batch):
         graph = tuple(batch)[0]
         graph_copy = copy.deepcopy(graph)
-        modelA_out = self.model(graph)  # foward the rest of the batch to the model
-        modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
+        modelA_node_features, modelA_out = self.model(graph)  # foward the rest of the batch to the model
+        modelB_node_features, modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
-        decoderA_out = self.decoder(graph) if self.decoder else None
-        decoderB_out = self.decoder2(graph) if self.decoder2 else None
+        decoderA_out = self.decoder(modelA_node_features) if self.decoder else None
+        decoderB_out = self.decoder2(modelB_node_features) if self.decoder2 else None
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components = self.loss_func(
             modelA_out, modelB_out, criticA_out, criticB_out, decoderA_out, decoderB_out, graph, graph_copy,
-            self.args.output_regularisation, self.args.loss_coeff1, self.args.loss_coeff2)
+            self.args.output_regularisation, self.args.loss_coeff1, self.args.loss_coeff2, self.device)
 
         return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
                (loss_components if loss_components != [] else None), modelA_out, modelB_out
@@ -182,8 +182,6 @@ class CLASSTrainer(Trainer):
         self.optim2 = optim(self.model2.parameters(), **self.args.optimizer2_params)
         self.optim_critic = optim(self.critic.parameters(), **self.args.optimizer_critic_params)
         self.optim_critic2 = optim(self.critic2.parameters(), **self.args.optimizer_critic2_params)
-        self.optim_decoder = optim(self.decoder.parameters(), **self.args.optimizer_decoder_params) if self.decoder else None
-        self.optim_decoder2 = optim(self.decoder2.parameters(), **self.args.optimizer_decoder2_params) if self.decoder2 else None
 
     def save_model_state(self, epoch: int, checkpoint_name: str):
         torch.save({
