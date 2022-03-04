@@ -110,12 +110,8 @@ class CLASSTrainer(Trainer):
                 self.optim_critic2.step()
                 if decoderA_loss:
                     decoderA_loss.backward(inputs=list(self.decoder.parameters()))
-                    self.optim_decoder.step()
-                    self.optim_decoder.zero_grad()
                 if decoderB_loss:
                     decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
-                    self.optim_decoder2.step()
-                    self.optim_decoder2.zero_grad()
 
                 self.optim.zero_grad()
                 self.optim2.zero_grad()
@@ -132,8 +128,6 @@ class CLASSTrainer(Trainer):
                     self.optim_critic.step()
                     if decoderA_loss:
                         decoderA_loss.backward(inputs=list(self.decoder.parameters()))
-                        self.optim_decoder.step()
-                        self.optim_decoder.zero_grad()
 
                     self.optim.zero_grad()
                     self.optim_critic.zero_grad()
@@ -147,8 +141,6 @@ class CLASSTrainer(Trainer):
                     self.optim_critic2.step()
                     if decoderB_loss:
                         decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
-                        self.optim_decoder2.step()
-                        self.optim_decoder2.zero_grad()
 
                     self.optim2.zero_grad()
                     self.optim_critic2.zero_grad()
