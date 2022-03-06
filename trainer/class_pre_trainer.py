@@ -108,43 +108,30 @@ class CLASSTrainer(Trainer):
                 self.optim_critic.step()
                 criticB_loss.backward(inputs=list(self.critic2.parameters()))
                 self.optim_critic2.step()
-                if decoderA_loss:
-                    decoderA_loss.backward(inputs=list(self.decoder.parameters()))
-                if decoderB_loss:
-                    decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
 
                 self.optim.zero_grad()
                 self.optim2.zero_grad()
                 self.optim_critic.zero_grad()
                 self.optim_critic2.zero_grad()
-
                 self.optim_steps += 1
-
             else:
                 if (self.optim_steps // self.args.iterations_per_model) % 2 == 0:
                     modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
                     self.optim.step()
                     criticA_loss.backward(inputs=list(self.critic.parameters()))
                     self.optim_critic.step()
-                    if decoderA_loss:
-                        decoderA_loss.backward(inputs=list(self.decoder.parameters()))
 
                     self.optim.zero_grad()
                     self.optim_critic.zero_grad()
-
                     self.optim_steps += 1
-
                 else:
                     modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
                     self.optim2.step()
                     criticB_loss.backward(inputs=list(self.critic2.parameters()))
                     self.optim_critic2.step()
-                    if decoderB_loss:
-                        decoderB_loss.backward(inputs=list(self.decoder2.parameters()))
 
                     self.optim2.zero_grad()
                     self.optim_critic2.zero_grad()
-
                     self.optim_steps += 1
 
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
