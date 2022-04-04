@@ -90,7 +90,8 @@ class CLASSTrainer(Trainer):
         decoderB_out = self.decoder2(modelB_node_features) if self.decoder2 else None
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components = self.loss_func(
             modelA_out, modelB_out, criticA_out, criticB_out, decoderA_out, decoderB_out, graph, graph_copy,
-            self.args.output_regularisation, self.args.loss_coeff1, self.args.loss_coeff2, self.device)
+            output_regularisation=self.args.output_regularisation, coop_loss_coeff=self.args.coop_loss_coeff,
+            adv_loss_coeff=self.args.adv_loss_coeff, device=self.device)
 
         return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
                (loss_components if loss_components != [] else None), modelA_out, modelB_out

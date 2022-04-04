@@ -77,7 +77,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pre-train_CLASS_decoder.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/pre-train_CLASS.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard logdirectory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -160,8 +160,8 @@ def parse_arguments():
     p.add_argument('--decoder2_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--decoder2_parameters', type=dict, default={}, help='dictionary of model parameters')
     p.add_argument('--output_regularisation', type=str, default='sigmoid', help='regularisation method for the models\' outputs')
-    p.add_argument('--loss_coeff1', type=float, default=1.0, help='coefficient of the cooperative loss')
-    p.add_argument('--loss_coeff2', type=float, default=0.5, help='coefficient of the adversarial loss')
+    p.add_argument('--coop_loss_coeff', type=float, default=1.0, help='coefficient of the cooperative loss')
+    p.add_argument('--adv_loss_coeff', type=float, default=0.5, help='coefficient of the adversarial loss')
 
     p.add_argument('--trainer', type=str, default='contrastive', help='[contrastive, byol, alternating, philosophy]')
     p.add_argument('--train_sampler', type=str, default=None, help='any of pytorchs samplers or a custom sampler')

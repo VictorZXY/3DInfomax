@@ -35,8 +35,8 @@ optimizer_critic2_params:
   lr: 8.0e-5
 
 output_regularisation: 'sigmoid'
-loss_coeff1: 1.0
-loss_coeff2: 0.5
+coop_loss_coeff: 1.0
+adv_loss_coeff: 0.5
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper

@@ -36,8 +36,12 @@ class CLASSLoss(_Loss):
         self.mse_loss = MSELoss()
     def forward(self, modelA_out, modelB_out, criticA_out, criticB_out,
                 decoderA_out=None, decoderB_out=None, graphA=None, graphB=None,
-                output_regularisation='sigmoid', loss_coeff1=1.0, loss_coeff2=0.5,
+                output_regularisation='sigmoid', coop_loss_coeff=1.0, adv_loss_coeff=0.5,
+                bt_loss_coeff=1.0, bt_loss_lambda=5e-3, cov_loss_coeff=1.0,
                 device=torch.device('cuda'), **kwargs):
+        batch_size = modelA_out.size(dim=0)
+        out_dim = modelA_out.size(dim=1)
+
         if output_regularisation == 'sigmoid':
             modelA_out = torch.sigmoid(modelA_out)
             modelB_out = torch.sigmoid(modelB_out)
@@ -54,22 +58,52 @@ class CLASSLoss(_Loss):
             criticA_out = F.normalize(criticA_out)
             criticB_out = F.normalize(criticB_out)
 
+        # VICReg covariance loss
+        modelA_out_norm = modelA_out - modelA_out.mean(dim=0)
+        modelB_out_norm = modelB_out - modelB_out.mean(dim=0)
+        cov_modelA_out = (modelA_out_norm.T @ modelA_out_norm) / (batch_size - 1)
+        cov_modelB_out = (modelB_out_norm.T @ modelB_out_norm) / (batch_size - 1)
+        mask = torch.ones_like(cov_modelA_out)
+        mask.fill_diagonal_(0)
+        cov_loss = (cov_modelA_out * mask).pow(2).sum() / out_dim \
+                   + (cov_modelB_out * mask).pow(2).sum() / out_dim
+
+        # Barlow Twins loss
+        # normalise embeddings along the batch dimension
+        modelA_out_norm = modelA_out_norm / modelA_out.std(dim=0)
+        modelB_out_norm = modelB_out_norm / modelB_out.std(dim=0)
+
+        # cross-correlation matrix
+        c = torch.mm(modelA_out_norm.T, modelB_out_norm) / batch_size
+        c_diff = (c - torch.eye(out_dim, device=device)).pow(2)
+        mask = torch.full_like(c_diff, bt_loss_lambda)
+        mask.fill_diagonal_(1)
+        c_diff = c_diff * mask
+        bt_loss = c_diff.sum()
+
+        # CLASS loss
+        # cooperative and adversarial losses
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
 
+        # decoder losses, if any
         if decoderA_out is not None:
             decoderA_loss = self.mse_loss(decoderA_out, graphA.adjacency_matrix().to_dense().to(device))
-            modelA_loss = decoderA_loss + loss_coeff1 * lossAB - loss_coeff2 * lossBA
+            modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA + decoderA_loss \
+                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
         else:
             decoderA_loss = 0.0
-            modelA_loss = lossAB - loss_coeff2 * lossBA
+            modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA \
+                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
 
         if decoderB_out is not None:
             decoderB_loss = self.mse_loss(decoderB_out, graphB.adjacency_matrix().to_dense().to(device))
-            modelB_loss = decoderB_loss + loss_coeff1 * lossBA - loss_coeff2 * lossAB
+            modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB + decoderB_loss \
+                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
         else:
             decoderB_loss = 0.0
-            modelB_loss = lossBA - loss_coeff2 * lossAB
+            modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB \
+                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
 
         criticA_loss = lossAB
         criticB_loss = lossBA
