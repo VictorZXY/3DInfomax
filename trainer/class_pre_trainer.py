@@ -101,12 +101,16 @@ class CLASSTrainer(Trainer):
         if optim != None:  # run backpropagation if an optimizer is provided
             if self.args.iterations_per_model == 0:
                 modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
                 self.optim.step()
                 modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
+                torch.nn.utils.clip_grad_norm_(self.model2.parameters(), max_norm=1)
                 self.optim2.step()
                 criticA_loss.backward(inputs=list(self.critic.parameters()))
+                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1)
                 self.optim_critic.step()
                 criticB_loss.backward(inputs=list(self.critic2.parameters()))
+                torch.nn.utils.clip_grad_norm_(self.critic2.parameters(), max_norm=1)
                 self.optim_critic2.step()
 
                 self.optim.zero_grad()
@@ -117,22 +121,25 @@ class CLASSTrainer(Trainer):
             else:
                 if (self.optim_steps // self.args.iterations_per_model) % 2 == 0:
                     modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
                     self.optim.step()
-                    criticA_loss.backward(inputs=list(self.critic.parameters()))
-                    self.optim_critic.step()
-
                     self.optim.zero_grad()
-                    self.optim_critic.zero_grad()
-                    self.optim_steps += 1
                 else:
                     modelB_loss.backward(inputs=list(self.model2.parameters()), retain_graph=True)
+                    torch.nn.utils.clip_grad_norm_(self.model2.parameters(), max_norm=1)
                     self.optim2.step()
-                    criticB_loss.backward(inputs=list(self.critic2.parameters()))
-                    self.optim_critic2.step()
-
                     self.optim2.zero_grad()
-                    self.optim_critic2.zero_grad()
-                    self.optim_steps += 1
+
+                criticA_loss.backward(inputs=list(self.critic.parameters()))
+                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1)
+                self.optim_critic.step()
+                criticB_loss.backward(inputs=list(self.critic2.parameters()))
+                torch.nn.utils.clip_grad_norm_(self.critic2.parameters(), max_norm=1)
+                self.optim_critic2.step()
+
+                self.optim_critic.zero_grad()
+                self.optim_critic2.zero_grad()
+                self.optim_steps += 1
 
         return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
 
@@ -148,7 +155,7 @@ class CLASSTrainer(Trainer):
                 targets.append(modelB_out)
             representations = torch.cat(representations, dim=0)
             targets = torch.cat(targets, dim=0)
-            for n_components in [8, 16]:
+            for n_components in [2, 4, 8]:
                 for output_name, X in [('pred', representations), ('targets', targets)]:
                     pca = PCA(n_components=n_components)
                     pca.fit_transform(X.cpu())
