@@ -133,7 +133,7 @@ class PNA(nn.Module):
         self.node_gnn(graph)
         readouts_to_cat = [dgl.readout_nodes(graph, 'feat', op=aggr) for aggr in self.readout_aggregators]
         readout = torch.cat(readouts_to_cat, dim=-1)
-        return graph.ndata['feat'], self.output(readout)
+        return self.output(readout)
 
 
 class PNAGNN(nn.Module):
@@ -156,7 +156,6 @@ class PNAGNN(nn.Module):
                          ),
 
             )
-
         self.atom_encoder = AtomEncoder(emb_dim=hidden_dim)
         self.bond_encoder = BondEncoder(emb_dim=hidden_dim)
 

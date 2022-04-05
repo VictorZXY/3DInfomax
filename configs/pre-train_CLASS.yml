@@ -2,7 +2,7 @@ experiment_name: 'pre-train_PNA_hidden_dim_64vs16'
 
 trainer: class
 dataset: class_pcba
-num_epochs: 20
+num_epochs: 10
 batch_size: 512
 log_iterations: 1
 eval_per_epochs: 1

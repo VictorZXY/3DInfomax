@@ -16,7 +16,7 @@ from trainer.trainer import Trainer
 
 class CLASSTrainer(Trainer):
     def __init__(self, model, model2, critic, critic2, args, metrics: Dict[str, Callable], main_metric: str,
-                 device: torch.device, tensorboard_functions: Dict[str, Callable], decoder=None, decoder2=None,
+                 device: torch.device, tensorboard_functions: Dict[str, Callable],
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
                  scheduler_step_per_batch: bool = True, **kwargs):
         # move to device before loading optim params in super class
@@ -24,8 +24,6 @@ class CLASSTrainer(Trainer):
         self.model2 = model2.to(device)
         self.critic = critic.to(device)
         self.critic2 = critic2.to(device)
-        self.decoder = decoder.to(device) if decoder else None
-        self.decoder2 = decoder2.to(device) if decoder2 else None
         super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
                                            optim, main_metric_goal, loss_func, scheduler_step_per_batch)
 
@@ -86,18 +84,17 @@ class CLASSTrainer(Trainer):
         modelB_node_features, modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
-        decoderA_out = self.decoder(modelA_node_features) if self.decoder else None
-        decoderB_out = self.decoder2(modelB_node_features) if self.decoder2 else None
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components = self.loss_func(
-            modelA_out, modelB_out, criticA_out, criticB_out, decoderA_out, decoderB_out, graph, graph_copy,
-            output_regularisation=self.args.output_regularisation, coop_loss_coeff=self.args.coop_loss_coeff,
-            adv_loss_coeff=self.args.adv_loss_coeff, device=self.device)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(
+            modelA_out, modelB_out, criticA_out, criticB_out,
+            output_regularisation=self.args.output_regularisation,
+            coop_loss_coeff=self.args.coop_loss_coeff, adv_loss_coeff=self.args.adv_loss_coeff,
+            device=self.device)
 
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
                (loss_components if loss_components != [] else None), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(batch)
 
         if optim != None:  # run backpropagation if an optimizer is provided
             if self.args.iterations_per_model == 0:
@@ -156,7 +153,7 @@ class CLASSTrainer(Trainer):
                 targets.append(modelB_out)
             representations = torch.cat(representations, dim=0)
             targets = torch.cat(targets, dim=0)
-            for n_components in [2, 4, 8]:
+            for n_components in [8]:
                 for output_name, X in [('pred', representations), ('targets', targets)]:
                     pca = PCA(n_components=n_components)
                     pca.fit_transform(X.cpu())

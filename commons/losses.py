@@ -14,49 +14,53 @@ class OGBNanLabelBCEWithLogitsLoss(_Loss):
     def __init__(self) -> None:
         super(OGBNanLabelBCEWithLogitsLoss, self).__init__()
         self.bce_loss = BCEWithLogitsLoss()
+
     def forward(self, pred, target, **kwargs):
         is_labeled = ~torch.isnan(target)
 
         loss = self.bce_loss(pred[is_labeled], target[is_labeled])
         return loss
 
+
 class OGBNanLabelMSELoss(_Loss):
     def __init__(self) -> None:
         super(OGBNanLabelMSELoss, self).__init__()
         self.mse_loss = MSELoss()
+
     def forward(self, pred, target, **kwargs):
         is_labeled = ~torch.isnan(target)
 
         loss = self.mse_loss(pred[is_labeled], target[is_labeled])
         return loss
 
+
 class CLASSLoss(_Loss):
     def __init__(self) -> None:
         super(CLASSLoss, self).__init__()
         self.mse_loss = MSELoss()
+
     def forward(self, modelA_out, modelB_out, criticA_out, criticB_out,
-                decoderA_out=None, decoderB_out=None, graphA=None, graphB=None,
                 output_regularisation='sigmoid', coop_loss_coeff=1.0, adv_loss_coeff=0.5,
                 bt_loss_coeff=1.0, bt_loss_lambda=5e-3, cov_loss_coeff=1.0,
                 device=torch.device('cuda'), **kwargs):
         batch_size = modelA_out.size(dim=0)
         out_dim = modelA_out.size(dim=1)
 
-        if output_regularisation == 'sigmoid':
-            modelA_out = torch.sigmoid(modelA_out)
-            modelB_out = torch.sigmoid(modelB_out)
-            criticA_out = torch.sigmoid(criticA_out)
-            criticB_out = torch.sigmoid(criticB_out)
-        elif output_regularisation == 'tanh':
-            modelA_out = torch.tanh(modelA_out)
-            modelB_out = torch.tanh(modelB_out)
-            criticA_out = torch.tanh(criticA_out)
-            criticB_out = torch.tanh(criticB_out)
-        elif output_regularisation == 'norm':
-            modelA_out = F.normalize(modelA_out)
-            modelB_out = F.normalize(modelB_out)
-            criticA_out = F.normalize(criticA_out)
-            criticB_out = F.normalize(criticB_out)
+        # if output_regularisation == 'sigmoid':
+        #     modelA_out = torch.sigmoid(modelA_out)
+        #     modelB_out = torch.sigmoid(modelB_out)
+        #     criticA_out = torch.sigmoid(criticA_out)
+        #     criticB_out = torch.sigmoid(criticB_out)
+        # elif output_regularisation == 'tanh':
+        #     modelA_out = torch.tanh(modelA_out)
+        #     modelB_out = torch.tanh(modelB_out)
+        #     criticA_out = torch.tanh(criticA_out)
+        #     criticB_out = torch.tanh(criticB_out)
+        # elif output_regularisation == 'norm':
+        #     modelA_out = F.normalize(modelA_out)
+        #     modelB_out = F.normalize(modelB_out)
+        #     criticA_out = F.normalize(criticA_out)
+        #     criticB_out = F.normalize(criticB_out)
 
         # VICReg covariance loss
         modelA_out_norm = modelA_out - modelA_out.mean(dim=0)
@@ -86,32 +90,14 @@ class CLASSLoss(_Loss):
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
 
-        # decoder losses, if any
-        if decoderA_out is not None:
-            decoderA_loss = self.mse_loss(decoderA_out, graphA.adjacency_matrix().to_dense().to(device))
-            modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA + decoderA_loss \
-                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
-        else:
-            decoderA_loss = 0.0
-            modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA \
-                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
-
-        if decoderB_out is not None:
-            decoderB_loss = self.mse_loss(decoderB_out, graphB.adjacency_matrix().to_dense().to(device))
-            modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB + decoderB_loss \
-                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
-        else:
-            decoderB_loss = 0.0
-            modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB \
-                          + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
-
+        modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
+        modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
         criticA_loss = lossAB
         criticB_loss = lossBA
 
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, decoderA_loss, decoderB_loss, \
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
                {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
                 'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                'decoderA_loss': decoderA_loss, 'decoderB_loss': decoderB_loss,
                 'lossAB': lossAB, 'lossBA': lossBA}
 
 
@@ -247,6 +233,7 @@ class NTXent(_Loss):
             loss += self.uniformity_reg * uniformity_loss(z1, z2)
         return loss
 
+
 class NTXentAE(_Loss):
     """
         Normalized Temperature-scaled Cross Entropy Loss from SimCLR paper
@@ -256,7 +243,8 @@ class NTXentAE(_Loss):
             norm: Boolean. Whether to apply normlization.
     """
 
-    def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0, reconstruction_reg = 1) -> None:
+    def __init__(self, norm: bool = True, tau: float = 0.5, uniformity_reg=0, variance_reg=0, covariance_reg=0,
+                 reconstruction_reg=1) -> None:
         super(NTXentAE, self).__init__()
         self.norm = norm
         self.tau = tau
@@ -287,6 +275,7 @@ class NTXentAE(_Loss):
         if self.uniformity_reg > 0:
             loss += self.uniformity_reg * uniformity_loss(z1, z2)
         return loss, self.reconstruction_reg * self.mse_loss(distances, distance_pred)
+
 
 class NTXentMultiplePositives(_Loss):
     """
@@ -908,9 +897,9 @@ class MaximumSimilarityMSE(_Loss):
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
         _, num_conformers, _ = z1.size()
 
-        z1 = z1[:,:,None,:].expand(-1,-1,num_conformers,-1)  # [batch_size, num_conformers, num_conformers, metric_dim]
-        z2 = z2[:,None,:,:].expand(-1,num_conformers,-1,-1)   # [batch_size, num_conformers, num_conformers, metric_dim]
-        loss = self.mse_loss(z1,z2).mean(dim=-1) # [batch_size, num_conformers, num_conformers]
+        z1 = z1[:, :, None, :].expand(-1, -1, num_conformers, -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
+        z2 = z2[:, None, :, :].expand(-1, num_conformers, -1, -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
+        loss = self.mse_loss(z1, z2).mean(dim=-1)  # [batch_size, num_conformers, num_conformers]
         loss = torch.amin(loss, dim=(1, 2)).mean()
 
         if self.variance_reg > 0:
@@ -920,6 +909,7 @@ class MaximumSimilarityMSE(_Loss):
         if self.uniformity_reg > 0:
             loss += self.uniformity_reg * uniformity_loss(z1, z2)
         return loss
+
 
 class NTXentMaximumSimilarity(_Loss):
     """
