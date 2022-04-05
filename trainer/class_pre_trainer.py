@@ -80,8 +80,8 @@ class CLASSTrainer(Trainer):
     def forward_pass(self, batch):
         graph = tuple(batch)[0]
         graph_copy = copy.deepcopy(graph)
-        modelA_node_features, modelA_out = self.model(graph)  # foward the rest of the batch to the model
-        modelB_node_features, modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
+        modelA_out = self.model(graph)  # foward the rest of the batch to the model
+        modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(
