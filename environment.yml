@@ -1,4 +1,4 @@
-name: 3DInfomax
+name: learning-with-class
 channels:
   - defaults
 dependencies:
