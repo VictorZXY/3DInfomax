@@ -1,4 +1,4 @@
-experiment_name: 'pre-train_PNA_hidden_dim_64vs16'
+experiment_name: 'pre-train_PNA_hidden_dim_64vs16_class_1'
 
 trainer: class
 dataset: class_pcba
@@ -9,6 +9,17 @@ eval_per_epochs: 1
 iterations_per_model: 20
 patience: 10000 # for early stopping etc
 loss_func: CLASSLoss
+loss_params:
+  out_regularisation: 'none'
+  coop_loss_coeff: 1.0
+  adv_loss_coeff: 0.5
+  class_loss_coeff: 1.0
+  bt_loss_coeff: 1.0
+  bt_scale_loss: 1 / 32
+  bt_lambd: 3.9e-3
+  bt_uniformity_reg: 0
+  bt_variance_reg: 0
+  bt_covariance_reg: 1 / 32
 num_train: 50000
 seed: 42
 
@@ -34,7 +45,7 @@ optimizer_critic2: Adam
 optimizer_critic2_params:
   lr: 8.0e-5
 
-output_regularisation: 'sigmoid'
+out_regularisation: 'sigmoid'
 #coop_loss_coeff: 1.0
 adv_loss_coeff: 0.5
 
@@ -60,7 +71,7 @@ model_parameters:
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
-  # e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum   =>  e^(log(0.001)/100) = 0.970
+  #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
   dropout: 0.0
@@ -89,7 +100,7 @@ model2_parameters:
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
-  # e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum   =>  e^(log(0.001)/100) = 0.970
+  #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
   dropout: 0.0

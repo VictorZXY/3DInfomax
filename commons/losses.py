@@ -35,70 +35,111 @@ class OGBNanLabelMSELoss(_Loss):
 
 
 class CLASSLoss(_Loss):
-    def __init__(self) -> None:
+    def __init__(self, out_regularisation='none', coop_loss_coeff=1.0, adv_loss_coeff=0.5,
+                 class_loss_coeff=1.0, bt_loss_coeff=0.0, bt_scale_loss=1 / 32, bt_lambd=3.9e-3,
+                 bt_uniformity_reg=0, bt_variance_reg=0, bt_covariance_reg=1 / 32) -> None:
         super(CLASSLoss, self).__init__()
         self.mse_loss = MSELoss()
+        self.out_regularisation = out_regularisation
+        self.coop_loss_coeff = coop_loss_coeff
+        self.adv_loss_coeff = adv_loss_coeff
+        self.class_loss_coeff = class_loss_coeff
+        self.bt_loss_coeff = bt_loss_coeff
+        if bt_loss_coeff > 0:
+            self.barlow_twins_loss = CLASSBarlowTwinsLoss(
+                scale_loss=bt_scale_loss, lambd=bt_lambd,
+                uniformity_reg=bt_uniformity_reg, variance_reg=bt_variance_reg, covariance_reg=bt_covariance_reg)
 
-    def forward(self, modelA_out, modelB_out, criticA_out, criticB_out,
-                output_regularisation='sigmoid', coop_loss_coeff=1.0, adv_loss_coeff=0.5,
-                bt_loss_coeff=1.0, bt_loss_lambda=5e-3, cov_loss_coeff=1.0,
-                device=torch.device('cuda'), **kwargs):
-        batch_size = modelA_out.size(dim=0)
-        out_dim = modelA_out.size(dim=1)
-
-        # if output_regularisation == 'sigmoid':
-        #     modelA_out = torch.sigmoid(modelA_out)
-        #     modelB_out = torch.sigmoid(modelB_out)
-        #     criticA_out = torch.sigmoid(criticA_out)
-        #     criticB_out = torch.sigmoid(criticB_out)
-        # elif output_regularisation == 'tanh':
-        #     modelA_out = torch.tanh(modelA_out)
-        #     modelB_out = torch.tanh(modelB_out)
-        #     criticA_out = torch.tanh(criticA_out)
-        #     criticB_out = torch.tanh(criticB_out)
-        # elif output_regularisation == 'norm':
-        #     modelA_out = F.normalize(modelA_out)
-        #     modelB_out = F.normalize(modelB_out)
-        #     criticA_out = F.normalize(criticA_out)
-        #     criticB_out = F.normalize(criticB_out)
-
-        # VICReg covariance loss
-        modelA_out_norm = modelA_out - modelA_out.mean(dim=0)
-        modelB_out_norm = modelB_out - modelB_out.mean(dim=0)
-        cov_modelA_out = (modelA_out_norm.T @ modelA_out_norm) / (batch_size - 1)
-        cov_modelB_out = (modelB_out_norm.T @ modelB_out_norm) / (batch_size - 1)
-        mask = torch.ones_like(cov_modelA_out)
-        mask.fill_diagonal_(0)
-        cov_loss = (cov_modelA_out * mask).pow(2).sum() / out_dim \
-                   + (cov_modelB_out * mask).pow(2).sum() / out_dim
+    def forward(self, modelA_out, modelB_out, criticA_out, criticB_out, **kwargs):
+        if self.out_regularisation == 'sigmoid':
+            modelA_out = torch.sigmoid(modelA_out)
+            modelB_out = torch.sigmoid(modelB_out)
+            criticA_out = torch.sigmoid(criticA_out)
+            criticB_out = torch.sigmoid(criticB_out)
+        elif self.out_regularisation == 'tanh':
+            modelA_out = torch.tanh(modelA_out)
+            modelB_out = torch.tanh(modelB_out)
+            criticA_out = torch.tanh(criticA_out)
+            criticB_out = torch.tanh(criticB_out)
+        elif self.out_regularisation == 'norm':
+            modelA_out = F.normalize(modelA_out)
+            modelB_out = F.normalize(modelB_out)
+            criticA_out = F.normalize(criticA_out)
+            criticB_out = F.normalize(criticB_out)
+        elif self.out_regularisation == 'none':
+            pass
+        else:
+            assert False
 
         # Barlow Twins loss
-        # normalise embeddings along the batch dimension
-        modelA_out_norm = modelA_out_norm / modelA_out.std(dim=0)
-        modelB_out_norm = modelB_out_norm / modelB_out.std(dim=0)
-
-        # cross-correlation matrix
-        c = torch.mm(modelA_out_norm.T, modelB_out_norm) / batch_size
-        c_diff = (c - torch.eye(out_dim, device=device)).pow(2)
-        mask = torch.full_like(c_diff, bt_loss_lambda)
-        mask.fill_diagonal_(1)
-        c_diff = c_diff * mask
-        bt_loss = c_diff.sum()
+        if self.bt_loss_coeff > 0:
+            bt_loss, bt_loss_components = self.barlow_twins_loss(modelA_out, modelB_out)
 
         # CLASS loss
-        # cooperative and adversarial losses
         lossAB = self.mse_loss(criticA_out, modelB_out)
         lossBA = self.mse_loss(criticB_out, modelA_out)
+        class_loss_A = self.coop_loss_coeff * lossAB - self.adv_loss_coeff * lossBA
+        class_loss_B = self.coop_loss_coeff * lossBA - self.adv_loss_coeff * lossAB
 
-        modelA_loss = coop_loss_coeff * lossAB - adv_loss_coeff * lossBA + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
-        modelB_loss = coop_loss_coeff * lossBA - adv_loss_coeff * lossAB + bt_loss_coeff * bt_loss + cov_loss_coeff * cov_loss
+        if self.bt_loss_coeff > 0:
+            modelA_loss = self.coop_loss_coeff * class_loss_A + self.bt_loss_coeff * bt_loss
+            modelB_loss = self.coop_loss_coeff * class_loss_B + self.bt_loss_coeff * bt_loss
+        else:
+            modelA_loss = class_loss_A
+            modelB_loss = class_loss_B
         criticA_loss = lossAB
         criticB_loss = lossBA
 
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
-               {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
-                'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
-                'lossAB': lossAB, 'lossBA': lossBA}
+        loss_components = {'modelA_loss': modelA_loss, 'modelB_loss': modelB_loss,
+                           'criticA_loss': criticA_loss, 'criticB_loss': criticB_loss,
+                           'lossAB': lossAB, 'lossBA': lossBA}
+        if self.bt_loss_coeff > 0:
+            loss_components['CLASS_loss_A'] = class_loss_A
+            loss_components['CLASS_loss_B'] = class_loss_B
+            loss_components.update(bt_loss_components)
+
+        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components
+
+
+class CLASSBarlowTwinsLoss(_Loss):
+    def __init__(self, scale_loss=1 / 32, lambd=3.9e-3,
+                 uniformity_reg=0, variance_reg=0, covariance_reg=1 / 32) -> None:
+        super(CLASSBarlowTwinsLoss, self).__init__()
+        self.scale_loss = scale_loss
+        self.lambd = lambd
+        self.uniformity_reg = uniformity_reg
+        self.variance_reg = variance_reg
+        self.covariance_reg = covariance_reg
+
+    def forward(self, modelA_out: torch.Tensor, modelB_out: torch.Tensor, **kwargs):
+        batch_size, metric_dim = modelA_out.size()
+        modelA_out_norm = (modelA_out - modelA_out.mean(dim=0)) / modelA_out.std(dim=0)  # [batch_size, metric_dim]
+        modelB_out_norm = (modelB_out - modelB_out.mean(dim=0)) / modelB_out.std(dim=0)  # [batch_size, metric_dim]
+        corr_matrix = (modelA_out_norm.T @ modelB_out_norm) / batch_size  # [metric_dim, metric_dim]
+
+        on_diag = torch.diagonal(corr_matrix).add_(-1).pow(2).sum().mul(self.scale_loss)
+
+        off_diag = corr_matrix.flatten()[:-1].view(metric_dim - 1, metric_dim + 1)[:, 1:].flatten()
+        off_diag = off_diag.pow(2).sum().mul(self.scale_loss)
+
+        bt_loss = on_diag + self.lambd * off_diag
+        loss = bt_loss
+
+        variance_loss = 0.0
+        covariance_loss = 0.0
+        uniform_loss = 0.0
+        if self.variance_reg > 0:
+            variance_loss = self.variance_reg * (std_loss(modelA_out) + std_loss(modelB_out))
+            loss += variance_loss
+        if self.covariance_reg > 0:
+            covariance_loss = self.covariance_reg * (cov_loss(modelA_out) + cov_loss(modelB_out))
+            loss += covariance_loss
+        if self.uniformity_reg > 0:
+            uniform_loss = self.uniformity_reg * uniformity_loss(modelA_out, modelB_out)
+            loss += uniformity_loss
+
+        return loss, {'BarlowTwin_loss': bt_loss, 'variance_loss': variance_loss,
+                      'covariance_loss': covariance_loss, 'uniformity_loss': uniform_loss}
 
 
 class CriticLoss(_Loss):
@@ -897,8 +938,10 @@ class MaximumSimilarityMSE(_Loss):
         z2 = z2.view(batch_size, -1, metric_dim)  # [batch_size, num_conformers, metric_dim]
         _, num_conformers, _ = z1.size()
 
-        z1 = z1[:, :, None, :].expand(-1, -1, num_conformers, -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
-        z2 = z2[:, None, :, :].expand(-1, num_conformers, -1, -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
+        z1 = z1[:, :, None, :].expand(-1, -1, num_conformers,
+                                      -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
+        z2 = z2[:, None, :, :].expand(-1, num_conformers, -1,
+                                      -1)  # [batch_size, num_conformers, num_conformers, metric_dim]
         loss = self.mse_loss(z1, z2).mean(dim=-1)  # [batch_size, num_conformers, num_conformers]
         loss = torch.amin(loss, dim=(1, 2)).mean()
 
@@ -1303,7 +1346,7 @@ class JSELossLocalGlobal(_Loss):
             z_n: Tensor of shape [n_nodes, z_dim].
             batch: Tensor of shape [n_graphs].
         """
-        # TODO: this doesn not work yet
+        # TODO: this does not work yet
         raise NotImplementedError('not done')
         device = z_g.device
         num_graphs = z_g.shape[0]

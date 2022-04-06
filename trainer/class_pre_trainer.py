@@ -69,7 +69,7 @@ class CLASSTrainer(Trainer):
                     shutil.copyfile(os.path.join(self.writer.log_dir, 'best_checkpoint.pt'),
                                     os.path.join(self.writer.log_dir, f'best_checkpoint_{epoch}epochs.pt'))
                 self.after_epoch()
-                #if val_loss > 10000:
+                # if val_loss > 10000:
                 #    raise Exception
 
         # evaluate on best checkpoint
@@ -80,21 +80,19 @@ class CLASSTrainer(Trainer):
     def forward_pass(self, batch):
         graph = tuple(batch)[0]
         graph_copy = copy.deepcopy(graph)
-        modelA_out = self.model(graph)  # foward the rest of the batch to the model
-        modelB_out = self.model2(graph_copy)  # foward the rest of the batch to the model
+        modelA_out = self.model(graph)  # forward the rest of the batch to the model
+        modelB_out = self.model2(graph_copy)  # forward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
         modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(
-            modelA_out, modelB_out, criticA_out, criticB_out,
-            output_regularisation=self.args.output_regularisation,
-            coop_loss_coeff=self.args.coop_loss_coeff, adv_loss_coeff=self.args.adv_loss_coeff,
-            device=self.device)
+            modelA_out, modelB_out, criticA_out, criticB_out)
 
         return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
                (loss_components if loss_components != [] else None), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(
+            batch)
 
         if optim != None:  # run backpropagation if an optimizer is provided
             if self.args.iterations_per_model == 0:
@@ -158,7 +156,8 @@ class CLASSTrainer(Trainer):
                     pca = PCA(n_components=n_components)
                     pca.fit_transform(X.cpu())
                     total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
-                    self.writer.add_scalar(f'PCA{n_components}_explained_variance_{loader_name}_{output_name}', total_explained_var_ratio, self.optim_steps)
+                    self.writer.add_scalar(f'PCA{n_components}_explained_variance_{loader_name}_{output_name}',
+                                           total_explained_var_ratio, self.optim_steps)
             print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):

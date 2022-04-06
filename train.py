@@ -155,7 +155,7 @@ def parse_arguments():
     p.add_argument('--critic_parameters', type=dict, help='dictionary of model parameters')
     p.add_argument('--critic2_type', type=str, default=None, help='Classname of one of the models in the models dir')
     p.add_argument('--critic2_parameters', type=dict, help='dictionary of model parameters')
-    p.add_argument('--output_regularisation', type=str, default='sigmoid', help='regularisation method for the models\' outputs')
+    p.add_argument('--out_regularisation', type=str, default='none', help='regularisation method for the models\' outputs')
     p.add_argument('--coop_loss_coeff', type=float, default=1.0, help='coefficient of the cooperative loss')
     p.add_argument('--adv_loss_coeff', type=float, default=0.5, help='coefficient of the adversarial loss')
 
