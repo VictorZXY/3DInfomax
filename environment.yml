@@ -6,10 +6,10 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - cudatoolkit=10.2
+  - cudatoolkit=11.3
   - rdkit
   - pytorch-geometric
-  - dgl-cuda10.2
+  - dgl-cuda11.3
   - pot
   - numpy
   - certifi
