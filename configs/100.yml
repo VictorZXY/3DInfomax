@@ -1,4 +1,4 @@
-experiment_name: 'pre-train_PNA_hidden_dim_256vs128_loss_weight_1'
+experiment_name: 'pre-train-PNA-hidden-dim-256vs128-loss-weight-10'
 
 trainer: class
 dataset: class_pcba
@@ -13,13 +13,13 @@ loss_params:
   out_regularisation: 'none'
   coop_loss_coeff: 1.0
   adv_loss_coeff: 0.5
-  class_loss_coeff: 1.0
+  class_loss_coeff: 100.0
   bt_loss_coeff: 1.0
   bt_scale_loss: 0.03125
   bt_lambd: 3.9e-3
   bt_uniformity_reg: 0
   bt_variance_reg: 0
-  bt_covariance_reg: 1.0
+  bt_covariance_reg: 100.0
 num_train: 50000
 seed: 42
 
