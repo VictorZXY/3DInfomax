@@ -9,7 +9,7 @@ import torch
 from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
 
-from commons.utils import move_to_device, log
+from commons.utils import move_to_device, log, tensorboard_singular_value_plot
 from trainer.self_supervised_trainer import SelfSupervisedTrainer
 from trainer.trainer import Trainer
 
@@ -142,22 +142,29 @@ class CLASSTrainer(Trainer):
     def run_per_epoch_evaluations(self, data_loader):
         for loader, loader_name in data_loader:
             print(f'computing PCA explained variance of the {loader_name} loader outputs')
-            representations = []
+
+            predictions = []
             targets = []
             for batch in loader:
                 batch = [element.to(self.device) for element in batch]
                 _, _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
-                representations.append(modelA_out)
+                predictions.append(modelA_out)
                 targets.append(modelB_out)
-            representations = torch.cat(representations, dim=0)
+            predictions = torch.cat(predictions, dim=0)
             targets = torch.cat(targets, dim=0)
-            for n_components in [8]:
-                for output_name, X in [('pred', representations), ('targets', targets)]:
-                    pca = PCA(n_components=n_components)
-                    pca.fit_transform(X.cpu())
-                    total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
-                    self.writer.add_scalar(f'PCA{n_components}_explained_variance_{loader_name}_{output_name}',
-                                           total_explained_var_ratio, self.optim_steps)
+
+            for X, data_split in [(predictions, 'pred'), (targets, 'targets')]:
+                tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
+                                                data_split=data_split)
+
+            # for n_components in [8]:
+            #     for output_name, X in [('pred', predictions), ('targets', targets)]:
+            #         pca = PCA(n_components=n_components)
+            #         pca.fit_transform(X.cpu())
+            #         total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
+            #         self.writer.add_scalar(f'PCA{n_components}_explained_variance_{loader_name}_{output_name}',
+            #                                total_explained_var_ratio, self.optim_steps)
+
             print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):
