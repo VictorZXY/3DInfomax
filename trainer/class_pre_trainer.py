@@ -153,7 +153,7 @@ class CLASSTrainer(Trainer):
             predictions = torch.cat(predictions, dim=0)
             targets = torch.cat(targets, dim=0)
 
-            for X, data_split in [(predictions, 'pred'), (targets, 'targets')]:
+            for X, data_split in [(predictions, f'{loader_name}_pred'), (targets, f'{loader_name}_targets')]:
                 tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
                                                 data_split=data_split)
 
