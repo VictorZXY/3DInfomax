@@ -82,8 +82,8 @@ class CLASSLoss(_Loss):
         class_loss_B = self.coop_loss_coeff * lossBA - self.adv_loss_coeff * lossAB
 
         if self.bt_loss_coeff > 0:
-            modelA_loss = self.coop_loss_coeff * class_loss_A + self.bt_loss_coeff * bt_loss
-            modelB_loss = self.coop_loss_coeff * class_loss_B + self.bt_loss_coeff * bt_loss
+            modelA_loss = self.class_loss_coeff * class_loss_A + self.bt_loss_coeff * bt_loss
+            modelB_loss = self.class_loss_coeff * class_loss_B + self.bt_loss_coeff * bt_loss
         else:
             modelA_loss = class_loss_A
             modelB_loss = class_loss_B
