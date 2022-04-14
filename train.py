@@ -203,7 +203,8 @@ def get_trainer(args, model, data, device, metrics):
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
                            critic_loss=globals()[args.critic_loss](**args.critic_loss_params), device=device,
                            tensorboard_functions=tensorboard_functions,
-                           scheduler_step_per_batch=args.scheduler_step_per_batch)
+                           scheduler_step_per_batch=args.scheduler_step_per_batch,
+                           run_dir=os.path.join(args.logdir, args.experiment_name))
     else:
         if args.trainer == 'optimal_transport':
             trainer = OptimalTransportTrainer

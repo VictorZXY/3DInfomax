@@ -18,14 +18,14 @@ class CLASSTrainer(Trainer):
     def __init__(self, model, model2, critic, critic2, args, metrics: Dict[str, Callable], main_metric: str,
                  device: torch.device, tensorboard_functions: Dict[str, Callable],
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
-                 scheduler_step_per_batch: bool = True, **kwargs):
+                 scheduler_step_per_batch: bool = True, run_dir='', **kwargs):
         # move to device before loading optim params in super class
         # no need to move model because it will be moved in super class call
         self.model2 = model2.to(device)
         self.critic = critic.to(device)
         self.critic2 = critic2.to(device)
         super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
-                                           optim, main_metric_goal, loss_func, scheduler_step_per_batch)
+                                           optim, main_metric_goal, loss_func, scheduler_step_per_batch, run_dir)
 
         if args.checkpoint:
             checkpoint = torch.load(args.checkpoint, map_location=self.device)
