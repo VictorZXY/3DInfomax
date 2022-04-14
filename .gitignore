@@ -118,8 +118,8 @@ dataset/
 playground.*
 runs
 runs/
-runs_legacy
-runs_legacy/
+runs_*
+runs_*/
 trained_models
 trained_models/
 *.pt
