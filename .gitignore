@@ -118,6 +118,8 @@ dataset/
 playground.*
 runs
 runs/
+runs*
+runs*/
 runs_*
 runs_*/
 trained_models
