@@ -2,6 +2,7 @@ experiment_name: 'pre-train-PNA-hidden-dim-256vs128-loss-weight-1'
 
 trainer: class
 dataset: class_pcba
+dataset_dir: /rds/user/xz398/hpc-work/learning-with-class/dataset
 num_epochs: 50
 batch_size: 512
 log_iterations: 1

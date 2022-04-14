@@ -79,12 +79,13 @@ def parse_arguments():
     p = argparse.ArgumentParser()
     p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs_clean/pre-train_CLASS.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
-    p.add_argument('--logdir', type=str, default='runs', help='tensorboard logdirectory')
+    p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
     p.add_argument('--batch_size', type=int, default=1024, help='samples that will be processed in parallel')
     p.add_argument('--patience', type=int, default=20, help='stop training after no improvement in this many epochs')
     p.add_argument('--minimum_epochs', type=int, default=0, help='minimum numer of epochs to run')
     p.add_argument('--dataset', type=str, default='qm9', help='[qm9, zinc, drugs, geom_qm9, molhiv]')
+    p.add_argument('--dataset_dir', type=str, default='dataset', help='dataset directory')
     p.add_argument('--num_train', type=int, default=-1, help='n samples of the model samples to use for train')
     p.add_argument('--seed', type=int, default=123, help='seed for reproducibility')
     p.add_argument('--num_val', type=int, default=None, help='n samples of the model samples to use for validation')
@@ -305,11 +306,11 @@ def train(args):
 
 def train_class(args, device, metrics_dict):
     if args.dataset == 'class_hiv':
-        all_data = DglGraphPropPredDataset(name='ogbg-molhiv')
+        all_data = DglGraphPropPredDataset(name='ogbg-molhiv', root=args.dataset_dir)
     elif args.dataset == 'class_freesolv':
-        all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv')
+        all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv', root=args.dataset_dir)
     elif args.dataset == 'class_pcba':
-        all_data = DglGraphPropPredDataset(name='ogbg-molpcba')
+        all_data = DglGraphPropPredDataset(name='ogbg-molpcba', root=args.dataset_dir)
     # TODO: add ZINC
     # elif args.dataset == 'class_zinc':
     #     all_data = [ZINCDataset(train), val, test]
