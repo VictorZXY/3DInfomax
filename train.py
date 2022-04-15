@@ -37,7 +37,7 @@ from trainer.byol_trainer import BYOLTrainer
 
 import seaborn
 
-from trainer.class_pre_trainer import CLASSTrainer
+from trainer.class_pre_trainer import CLASSTrainer, CLASSHybridBarlowTwinsTrainer
 from trainer.graphcl_trainer import GraphCLTrainer
 from trainer.optimal_transport_trainer import OptimalTransportTrainer
 from trainer.philosophy_trainer import PhilosophyTrainer
@@ -199,11 +199,19 @@ def get_trainer(args, model, data, device, metrics):
             ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
             critic2 = globals()[args.critic2_type](**args.critic2_parameters)
-        return ssl_trainer(model=model, model2=model2, critic=critic, critic2=critic2, args=args,
+            return ssl_trainer(model=model, model2=model2, critic=critic, critic2=critic2, args=args,
+                               metrics=metrics, main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
+                               optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
+                               critic_loss=globals()[args.critic_loss](**args.critic_loss_params), device=device,
+                               tensorboard_functions=tensorboard_functions,
+                               scheduler_step_per_batch=args.scheduler_step_per_batch,
+                               run_dir=os.path.join(args.logdir, args.experiment_name))
+        elif args.trainer == 'class_hybrid_bt':
+            ssl_trainer = CLASSHybridBarlowTwinsTrainer
+        return ssl_trainer(model=model, model2=model2, args=args,
                            metrics=metrics, main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
-                           critic_loss=globals()[args.critic_loss](**args.critic_loss_params), device=device,
-                           tensorboard_functions=tensorboard_functions,
+                           device=device, tensorboard_functions=tensorboard_functions,
                            scheduler_step_per_batch=args.scheduler_step_per_batch,
                            run_dir=os.path.join(args.logdir, args.experiment_name))
     else:

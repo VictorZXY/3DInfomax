@@ -142,6 +142,64 @@ class CLASSBarlowTwinsLoss(_Loss):
                       'covariance_loss': covariance_loss, 'uniformity_loss': uniform_loss}
 
 
+class CLASSHybridBarlowTwinsLoss(_Loss):
+    def __init__(self, scale_loss=1 / 32, lambd=3.9e-3,
+                 upper_tri_coeff=1, lower_tri_coeff=1,
+                 uniformity_reg=0, variance_reg=0, covariance_reg=1 / 32) -> None:
+        super(CLASSHybridBarlowTwinsLoss, self).__init__()
+        self.scale_loss = scale_loss
+        self.lambd = lambd
+        self.upper_tri_coeff = upper_tri_coeff
+        self.lower_tri_coeff = lower_tri_coeff
+        self.uniformity_reg = uniformity_reg
+        self.variance_reg = variance_reg
+        self.covariance_reg = covariance_reg
+
+    def forward(self, modelA_out: torch.Tensor, modelB_out: torch.Tensor, **kwargs):
+        batch_size, metric_dim = modelA_out.size()
+        modelA_out_norm = (modelA_out - modelA_out.mean(dim=0)) / modelA_out.std(dim=0)  # [batch_size, metric_dim]
+        modelB_out_norm = (modelB_out - modelB_out.mean(dim=0)) / modelB_out.std(dim=0)  # [batch_size, metric_dim]
+        corr_matrix = (modelA_out_norm.T @ modelB_out_norm) / batch_size  # [metric_dim, metric_dim]
+
+        on_diag = torch.diagonal(corr_matrix).add_(-1).pow(2).sum().mul(self.scale_loss)
+
+        upper_tri = torch.triu(corr_matrix, diagonal=1).flatten()
+        upper_tri = upper_tri.pow(2).sum().mul(self.scale_loss)
+
+        lower_tri = torch.tril(corr_matrix, diagonal=-1).flatten()
+        lower_tri = lower_tri.pow(2).sum().mul(self.scale_loss)
+
+        modelA_loss = on_diag + self.lambd * self.upper_tri_coeff * upper_tri \
+                      - self.lambd * self.lower_tri_coeff * lower_tri
+        modelB_loss = on_diag - self.lambd * self.upper_tri_coeff * upper_tri \
+                      + self.lambd * self.lower_tri_coeff * lower_tri
+
+        variance_loss = 0.0
+        covariance_loss = 0.0
+        uniform_loss = 0.0
+        if self.variance_reg > 0:
+            variance_loss = self.variance_reg * (std_loss(modelA_out) + std_loss(modelB_out))
+            modelA_loss += variance_loss
+            modelB_loss += variance_loss
+        if self.covariance_reg > 0:
+            covariance_loss = self.covariance_reg * (cov_loss(modelA_out) + cov_loss(modelB_out))
+            modelA_loss += covariance_loss
+            modelB_loss += covariance_loss
+        if self.uniformity_reg > 0:
+            uniform_loss = self.uniformity_reg * uniformity_loss(modelA_out, modelB_out)
+            modelA_loss += uniformity_loss
+            modelB_loss += uniformity_loss
+
+        return modelA_loss, modelB_loss, {'modelA_loss': modelA_loss,
+                                          'modelB_loss': modelB_loss,
+                                          'on_diagonal_loss': on_diag,
+                                          'upper_triangle_loss': upper_tri,
+                                          'lower_triangle_loss': lower_tri,
+                                          'variance_loss': variance_loss,
+                                          'covariance_loss': covariance_loss,
+                                          'uniformity_loss': uniform_loss}
+
+
 class CriticLoss(_Loss):
     def __init__(self) -> None:
         super(CriticLoss, self).__init__()
