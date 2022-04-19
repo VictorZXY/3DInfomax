@@ -144,13 +144,13 @@ class CLASSBarlowTwinsLoss(_Loss):
 
 class CLASSHybridBarlowTwinsLoss(_Loss):
     def __init__(self, scale_loss=1 / 32, lambd=3.9e-3,
-                 upper_tri_coeff=1, lower_tri_coeff=1,
+                 self_tri_coeff=1, opponent_tri_coeff=1,
                  uniformity_reg=0, variance_reg=0, covariance_reg=1 / 32) -> None:
         super(CLASSHybridBarlowTwinsLoss, self).__init__()
         self.scale_loss = scale_loss
         self.lambd = lambd
-        self.upper_tri_coeff = upper_tri_coeff
-        self.lower_tri_coeff = lower_tri_coeff
+        self.self_tri_coeff = self_tri_coeff
+        self.opponent_tri_coeff = opponent_tri_coeff
         self.uniformity_reg = uniformity_reg
         self.variance_reg = variance_reg
         self.covariance_reg = covariance_reg
@@ -169,10 +169,10 @@ class CLASSHybridBarlowTwinsLoss(_Loss):
         lower_tri = torch.tril(corr_matrix, diagonal=-1).flatten()
         lower_tri = lower_tri.pow(2).sum().mul(self.scale_loss)
 
-        modelA_loss = on_diag + self.lambd * self.upper_tri_coeff * upper_tri \
-                      - self.lambd * self.lower_tri_coeff * lower_tri
-        modelB_loss = on_diag - self.lambd * self.upper_tri_coeff * upper_tri \
-                      + self.lambd * self.lower_tri_coeff * lower_tri
+        modelA_loss = on_diag + self.lambd * self.self_tri_coeff * upper_tri \
+                      - self.lambd * self.opponent_tri_coeff * lower_tri
+        modelB_loss = on_diag + self.lambd * self.self_tri_coeff * lower_tri \
+                      - self.lambd * self.opponent_tri_coeff * upper_tri
 
         variance_loss = 0.0
         covariance_loss = 0.0
@@ -192,6 +192,7 @@ class CLASSHybridBarlowTwinsLoss(_Loss):
 
         return modelA_loss, modelB_loss, {'modelA_loss': modelA_loss,
                                           'modelB_loss': modelB_loss,
+                                          'model_loss_diff': modelA_loss - modelB_loss,
                                           'on_diagonal_loss': on_diag,
                                           'upper_triangle_loss': upper_tri,
                                           'lower_triangle_loss': lower_tri,

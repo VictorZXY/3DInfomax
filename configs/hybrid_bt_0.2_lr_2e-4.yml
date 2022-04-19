@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-hidden-dim-256vs128-hybrid-bt-1'
+experiment_name: 'pre-train-PNA-hidden-dim-256vs128-hybrid-bt-0.2-lr-2e-4'
 
 trainer: class_hybrid_bt
 dataset: class_pcba
@@ -13,8 +13,8 @@ loss_func: CLASSHybridBarlowTwinsLoss
 loss_params:
   scale_loss: 0.03125
   lambd: 3.9e-3
-  upper_tri_coeff: 1
-  lower_tri_coeff: 1
+  self_tri_coeff: 1
+  opponent_tri_coeff: 0.2
   uniformity_reg: 0
   variance_reg: 0
   covariance_reg: 0.03125
@@ -29,11 +29,11 @@ collate_function: class_collate
 
 optimizer: Adam
 optimizer_params:
-  lr: 8.0e-5
+  lr: 2.0e-4
 
 optimizer2: Adam
 optimizer2_params:
-  lr: 8.0e-5
+  lr: 2.0e-4
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper
@@ -60,21 +60,20 @@ model_parameters:
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 7
+  propagation_depth: 10
   dropout: 0.0
   aggregators:
     - mean
     - max
-    - min
-    - std
+    - sum
   scalers:
     - identity
     - amplification
     - attenuation
   readout_aggregators:
-    - min
-    - max
     - mean
+    - max
+    - sum
   pretrans_layers: 2
   posttrans_layers: 1
   residual: True
@@ -90,21 +89,20 @@ model2_parameters:
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 7
+  propagation_depth: 10
   dropout: 0.0
   aggregators:
     - mean
     - max
-    - min
-    - std
+    - sum
   scalers:
     - identity
     - amplification
     - attenuation
   readout_aggregators:
-    - min
-    - max
     - mean
+    - max
+    - sum
   pretrans_layers: 2
   posttrans_layers: 1
   residual: True
