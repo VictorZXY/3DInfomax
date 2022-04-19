@@ -7,7 +7,6 @@ num_epochs: 50
 batch_size: 512
 log_iterations: 1
 eval_per_epochs: 1
-iterations_per_model: 20
 patience: 10000 # for early stopping etc
 loss_func: CLASSHybridBarlowTwinsLoss
 loss_params:
