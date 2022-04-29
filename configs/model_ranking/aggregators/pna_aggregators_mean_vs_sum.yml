@@ -62,15 +62,13 @@ model_parameters:
   propagation_depth: 10
   dropout: 0.0
   aggregators:
-    - sum
+    - mean
   scalers:
     - identity
     - amplification
     - attenuation
   readout_aggregators:
     - mean
-    - max
-    - sum
   pretrans_layers: 2
   posttrans_layers: 1
   residual: True
@@ -95,8 +93,6 @@ model2_parameters:
     - amplification
     - attenuation
   readout_aggregators:
-    - mean
-    - max
     - sum
   pretrans_layers: 2
   posttrans_layers: 1
