@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-aggregators-sum-vs-all'
+experiment_name: 'aggregators-sum-vs-all'
 
 trainer: class_hybrid_bt
 dataset: class_pcba

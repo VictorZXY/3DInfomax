@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-aggregators-sum-vs-max'
+experiment_name: 'aggregators-sum-vs-max'
 
 trainer: class_hybrid_bt
 dataset: class_pcba

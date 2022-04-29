@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-hidden-dim-16vs256'
+experiment_name: 'hidden-dim-16vs256'
 
 trainer: class_hybrid_bt
 dataset: class_pcba

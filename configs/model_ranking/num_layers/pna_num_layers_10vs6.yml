@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-num-layers-10vs6'
+experiment_name: 'num-layers-10vs6'
 
 trainer: class_hybrid_bt
 dataset: class_pcba

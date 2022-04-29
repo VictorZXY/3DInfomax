@@ -1,4 +1,4 @@
-experiment_name: 'pre-train-PNA-hidden-dim-256vs128-loss-weight-10'
+experiment_name: 'hidden-dim-256vs128-loss-weight-10'
 
 trainer: class
 dataset: class_pcba
