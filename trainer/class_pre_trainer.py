@@ -127,7 +127,7 @@ class CLASSTrainer(Trainer):
                 self.optim_critic2.zero_grad()
                 self.optim_steps += 1
 
-        return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
+        return modelA_loss, (predictions.detach()), (targets.detach())
 
     def run_per_epoch_evaluations(self, data_loader):
         for loader, loader_name in data_loader:
@@ -137,7 +137,7 @@ class CLASSTrainer(Trainer):
             targets = []
             for batch in loader:
                 batch = [element.to(self.device) for element in batch]
-                _, _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
+                _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
                 predictions.append(modelA_out)
                 targets.append(modelB_out)
             predictions = torch.cat(predictions, dim=0)
@@ -260,7 +260,7 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
             targets = []
             for batch in loader:
                 batch = [element.to(self.device) for element in batch]
-                _, _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
+                _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
                 predictions.append(modelA_out)
                 targets.append(modelB_out)
             predictions = torch.cat(predictions, dim=0)
