@@ -77,7 +77,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs_clean/pre-train_CLASS.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/model_ranking/hidden_dim/pna_hidden_dim_16vs16.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -125,11 +125,18 @@ def parse_arguments():
     p.add_argument('--pretrain_checkpoint', type=str, help='Specify path to finetune from a pretrained checkpoint')
     p.add_argument('--transfer_layers', default=[],
                    help='strings contained in the keys of the weights that are transferred')
+    p.add_argument('--transfer_layers2', default=[],
+                   help='strings contained in the keys of the weights that are transferred')
     p.add_argument('--frozen_layers', default=[],
+                   help='strings contained in the keys of the weights that are transferred')
+    p.add_argument('--frozen_layers2', default=[],
                    help='strings contained in the keys of the weights that are transferred')
     p.add_argument('--exclude_from_transfer', default=[],
                    help='parameters that usually should not be transferred like batchnorm params')
+    p.add_argument('--exclude_from_transfer2', default=[],
+                   help='parameters that usually should not be transferred like batchnorm params')
     p.add_argument('--transferred_lr', type=float, default=None, help='set to use a different LR for transfer layers')
+    p.add_argument('--transferred_lr2', type=float, default=None, help='set to use a different LR for transfer layers')
     p.add_argument('--num_epochs_local_only', type=int, default=1,
                    help='when training with OptimalTransportTrainer, this specifies for how many epochs only the local predictions will get a loss')
 
@@ -204,16 +211,14 @@ def get_trainer(args, model, data, device, metrics):
                                optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
                                critic_loss=globals()[args.critic_loss](**args.critic_loss_params), device=device,
                                tensorboard_functions=tensorboard_functions,
-                               scheduler_step_per_batch=args.scheduler_step_per_batch,
-                               run_dir=os.path.join(args.logdir, args.experiment_name))
+                               scheduler_step_per_batch=args.scheduler_step_per_batch)
         elif args.trainer == 'class_hybrid_bt':
             ssl_trainer = CLASSHybridBarlowTwinsTrainer
         return ssl_trainer(model=model, model2=model2, args=args,
                            metrics=metrics, main_metric=args.main_metric, main_metric_goal=args.main_metric_goal,
                            optim=globals()[args.optimizer], loss_func=globals()[args.loss_func](**args.loss_params),
                            device=device, tensorboard_functions=tensorboard_functions,
-                           scheduler_step_per_batch=args.scheduler_step_per_batch,
-                           run_dir=os.path.join(args.logdir, args.experiment_name))
+                           scheduler_step_per_batch=args.scheduler_step_per_batch)
     else:
         if args.trainer == 'optimal_transport':
             trainer = OptimalTransportTrainer

@@ -1,16 +1,12 @@
 import copy
 import os
 import shutil
-from itertools import chain
-from typing import Union, Tuple, Dict, Callable
+from typing import Dict, Callable
 
-import numpy as np
 import torch
-from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
 
-from commons.utils import move_to_device, log, tensorboard_singular_value_plot
-from trainer.self_supervised_trainer import SelfSupervisedTrainer
+from commons.utils import tensorboard_singular_value_plot
 from trainer.trainer import Trainer
 
 
@@ -18,14 +14,14 @@ class CLASSTrainer(Trainer):
     def __init__(self, model, model2, critic, critic2, args, metrics: Dict[str, Callable], main_metric: str,
                  device: torch.device, tensorboard_functions: Dict[str, Callable],
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
-                 scheduler_step_per_batch: bool = True, run_dir='', **kwargs):
+                 scheduler_step_per_batch: bool = True, **kwargs):
         # move to device before loading optim params in super class
         # no need to move model because it will be moved in super class call
         self.model2 = model2.to(device)
         self.critic = critic.to(device)
         self.critic2 = critic2.to(device)
         super(CLASSTrainer, self).__init__(model, args, metrics, main_metric, device, tensorboard_functions,
-                                           optim, main_metric_goal, loss_func, scheduler_step_per_batch, run_dir)
+                                           optim, main_metric_goal, loss_func, scheduler_step_per_batch)
 
         if args.checkpoint:
             checkpoint = torch.load(args.checkpoint, map_location=self.device)
@@ -34,13 +30,12 @@ class CLASSTrainer(Trainer):
     def train(self, train_loader: DataLoader, val_loader: DataLoader):
         epochs_no_improve = 0  # counts every epoch that the validation accuracy did not improve for early stopping
         for epoch in range(self.start_epoch, self.args.num_epochs + 1):  # loop over the dataset multiple times
-            self.epoch = epoch
             self.model.train()
-            self.predict(train_loader, optim=self.optim)
+            self.predict(train_loader, epoch, optim=self.optim)
 
             self.model.eval()
             with torch.no_grad():
-                metrics, _, _ = self.predict(val_loader)
+                metrics = self.predict(val_loader, epoch)
                 val_score = metrics[self.main_metric]
 
                 if self.lr_scheduler != None and not self.scheduler_step_per_batch:
@@ -49,9 +44,10 @@ class CLASSTrainer(Trainer):
                 if self.args.eval_per_epochs > 0 and epoch % self.args.eval_per_epochs == 0:
                     self.run_per_epoch_evaluations([(train_loader, 'train'), (val_loader, 'val')])
 
-                self.tensorboard_log(metrics, data_split='val', log_hparam=True, step=self.optim_steps)
+                self.tensorboard_log(metrics, data_split='val', epoch=epoch, log_hparam=True, step=self.optim_steps)
                 val_loss = metrics[type(self.loss_func).__name__]
-                log(f'[Epoch {epoch}] {self.main_metric}: {val_score} val loss: {val_loss}')
+                print('[Epoch %d] %s: %.6f val loss: %.6f' % (epoch, self.main_metric, val_score, val_loss))
+
                 # save the model with the best main_metric depending on wether we want to maximize or minimize the main metric
                 if val_score >= self.best_val_score and self.main_metric_goal == 'max' or val_score <= self.best_val_score and self.main_metric_goal == 'min':
                     epochs_no_improve = 0
@@ -60,17 +56,14 @@ class CLASSTrainer(Trainer):
                 else:
                     epochs_no_improve += 1
                 self.save_checkpoint(epoch, checkpoint_name='last_checkpoint.pt')
-                log('Epochs with no improvement: [', epochs_no_improve, '] and the best  ', self.main_metric,
-                    ' was in ', epoch - epochs_no_improve)
+
                 if epochs_no_improve >= self.args.patience and epoch >= self.args.minimum_epochs:  # stopping criterion
-                    log(f'Early stopping criterion based on -{self.main_metric}- that should be {self.main_metric_goal}-imized reached after {epoch} epochs. Best model checkpoint was in epoch {epoch - epochs_no_improve}.')
+                    print(
+                        f'Early stopping criterion based on -{self.main_metric}- that should be {self.main_metric_goal} reached after {epoch} epochs. Best model checkpoint was in epoch {epoch - epochs_no_improve}.')
                     break
                 if epoch in self.args.models_to_save:
                     shutil.copyfile(os.path.join(self.writer.log_dir, 'best_checkpoint.pt'),
                                     os.path.join(self.writer.log_dir, f'best_checkpoint_{epoch}epochs.pt'))
-                self.after_epoch()
-                # if val_loss > 10000:
-                #    raise Exception
 
         # evaluate on best checkpoint
         checkpoint = torch.load(os.path.join(self.writer.log_dir, 'best_checkpoint.pt'), map_location=self.device)
@@ -84,14 +77,12 @@ class CLASSTrainer(Trainer):
         modelB_out = self.model2(graph_copy)  # forward the rest of the batch to the model
         criticA_out = self.critic(modelA_out)
         criticB_out = self.critic2(modelB_out)
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = self.loss_func(
-            modelA_out, modelB_out, criticA_out, criticB_out)
 
-        return modelA_loss, modelB_loss, criticA_loss, criticB_loss, \
-               (loss_components if loss_components != [] else None), modelA_out, modelB_out
+        return self.loss_func(modelA_out, modelB_out, criticA_out, criticB_out), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        loss, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, criticA_loss, criticB_loss, loss_components = loss
 
         if optim != None:  # run backpropagation if an optimizer is provided
             if self.args.iterations_per_model == 0:
@@ -156,14 +147,6 @@ class CLASSTrainer(Trainer):
                 tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
                                                 data_split=data_split)
 
-            # for n_components in [8]:
-            #     for output_name, X in [('pred', predictions), ('targets', targets)]:
-            #         pca = PCA(n_components=n_components)
-            #         pca.fit_transform(X.cpu())
-            #         total_explained_var_ratio = np.sum(pca.explained_variance_ratio_)
-            #         self.writer.add_scalar(f'PCA{n_components}_explained_variance_{loader_name}_{output_name}',
-            #                                total_explained_var_ratio, self.optim_steps)
-
             print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):
@@ -188,13 +171,13 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
     def __init__(self, model, model2, args, metrics: Dict[str, Callable], main_metric: str,
                  device: torch.device, tensorboard_functions: Dict[str, Callable],
                  optim=None, main_metric_goal: str = 'min', loss_func=torch.nn.MSELoss,
-                 scheduler_step_per_batch: bool = True, run_dir='', **kwargs):
+                 scheduler_step_per_batch: bool = True, **kwargs):
         # move to device before loading optim params in super class
         # no need to move model because it will be moved in super class call
         self.model2 = model2.to(device)
         super(CLASSHybridBarlowTwinsTrainer, self).__init__(model, args, metrics, main_metric, device,
                                                             tensorboard_functions, optim, main_metric_goal, loss_func,
-                                                            scheduler_step_per_batch, run_dir)
+                                                            scheduler_step_per_batch)
 
         if args.checkpoint:
             checkpoint = torch.load(args.checkpoint, map_location=self.device)
@@ -203,13 +186,12 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
     def train(self, train_loader: DataLoader, val_loader: DataLoader):
         epochs_no_improve = 0  # counts every epoch that the validation accuracy did not improve for early stopping
         for epoch in range(self.start_epoch, self.args.num_epochs + 1):  # loop over the dataset multiple times
-            self.epoch = epoch
             self.model.train()
-            self.predict(train_loader, optim=self.optim)
+            self.predict(train_loader, epoch, optim=self.optim)
 
             self.model.eval()
             with torch.no_grad():
-                metrics, _, _ = self.predict(val_loader)
+                metrics = self.predict(val_loader, epoch)
                 val_score = metrics[self.main_metric]
 
                 if self.lr_scheduler != None and not self.scheduler_step_per_batch:
@@ -218,9 +200,10 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
                 if self.args.eval_per_epochs > 0 and epoch % self.args.eval_per_epochs == 0:
                     self.run_per_epoch_evaluations([(train_loader, 'train'), (val_loader, 'val')])
 
-                self.tensorboard_log(metrics, data_split='val', log_hparam=True, step=self.optim_steps)
+                self.tensorboard_log(metrics, data_split='val', epoch=epoch, log_hparam=True, step=self.optim_steps)
                 val_loss = metrics[type(self.loss_func).__name__]
-                log(f'[Epoch {epoch}] {self.main_metric}: {val_score} val loss: {val_loss}')
+                print('[Epoch %d] %s: %.6f val loss: %.6f' % (epoch, self.main_metric, val_score, val_loss))
+
                 # save the model with the best main_metric depending on wether we want to maximize or minimize the main metric
                 if val_score >= self.best_val_score and self.main_metric_goal == 'max' or val_score <= self.best_val_score and self.main_metric_goal == 'min':
                     epochs_no_improve = 0
@@ -229,17 +212,14 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
                 else:
                     epochs_no_improve += 1
                 self.save_checkpoint(epoch, checkpoint_name='last_checkpoint.pt')
-                log('Epochs with no improvement: [', epochs_no_improve, '] and the best  ', self.main_metric,
-                    ' was in ', epoch - epochs_no_improve)
+
                 if epochs_no_improve >= self.args.patience and epoch >= self.args.minimum_epochs:  # stopping criterion
-                    log(f'Early stopping criterion based on -{self.main_metric}- that should be {self.main_metric_goal}-imized reached after {epoch} epochs. Best model checkpoint was in epoch {epoch - epochs_no_improve}.')
+                    print(
+                        f'Early stopping criterion based on -{self.main_metric}- that should be {self.main_metric_goal} reached after {epoch} epochs. Best model checkpoint was in epoch {epoch - epochs_no_improve}.')
                     break
                 if epoch in self.args.models_to_save:
                     shutil.copyfile(os.path.join(self.writer.log_dir, 'best_checkpoint.pt'),
                                     os.path.join(self.writer.log_dir, f'best_checkpoint_{epoch}epochs.pt'))
-                self.after_epoch()
-                # if val_loss > 10000:
-                #    raise Exception
 
         # evaluate on best checkpoint
         checkpoint = torch.load(os.path.join(self.writer.log_dir, 'best_checkpoint.pt'), map_location=self.device)
@@ -251,13 +231,12 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
         graph_copy = copy.deepcopy(graph)
         modelA_out = self.model(graph)  # forward the rest of the batch to the model
         modelB_out = self.model2(graph_copy)  # forward the rest of the batch to the model
-        modelA_loss, modelB_loss, loss_components = self.loss_func(modelA_out, modelB_out)
 
-        return modelA_loss, modelB_loss, \
-               (loss_components if loss_components != [] else None), modelA_out, modelB_out
+        return self.loss_func(modelA_out, modelB_out), modelA_out, modelB_out
 
     def process_batch(self, batch, optim):
-        modelA_loss, modelB_loss, loss_components, predictions, targets = self.forward_pass(batch)
+        loss, predictions, targets = self.forward_pass(batch)
+        modelA_loss, modelB_loss, loss_components = loss
 
         if optim != None:  # run backpropagation if an optimizer is provided
             modelA_loss.backward(inputs=list(self.model.parameters()), retain_graph=True)
@@ -271,7 +250,7 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
             self.optim2.zero_grad()
             self.optim_steps += 1
 
-        return modelA_loss, loss_components, (predictions.detach()), (targets.detach())
+        return modelA_loss - modelB_loss, (predictions.detach()), (targets.detach())
 
     def run_per_epoch_evaluations(self, data_loader):
         for loader, loader_name in data_loader:
@@ -294,8 +273,53 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
             print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):
-        self.optim = optim(self.model.parameters(), **self.args.optimizer_params)
-        self.optim2 = optim(self.model2.parameters(), **self.args.optimizer2_params)
+        transferred_keys = [k for k in self.model.state_dict().keys() if
+                            any(transfer_layer in k for transfer_layer in self.args.transfer_layers) and
+                            not any(to_exclude in k for to_exclude in self.args.exclude_from_transfer)]
+        frozen_keys = [k for k in self.model.state_dict().keys() if
+                       any(to_freeze in k for to_freeze in self.args.frozen_layers)]
+        frozen_params = [v for k, v in self.model.named_parameters() if k in frozen_keys]
+        transferred_params = [v for k, v in self.model.named_parameters() if k in transferred_keys]
+        new_params = [v for k, v in self.model.named_parameters() if
+                      k not in transferred_keys and 'batch_norm' not in k and k not in frozen_keys]
+        batch_norm_params = [v for k, v in self.model.named_parameters() if
+                             'batch_norm' in k and k not in transferred_keys and k not in frozen_keys]
+
+        transfer_lr = self.args.optimizer_params['lr'] if self.args.transferred_lr == None else self.args.transferred_lr
+        # the order of the params here determines in which order they will start being updated during warmup when using ordered warmup in the warmupwrapper
+        param_groups = []
+        if batch_norm_params != []:
+            param_groups.append({'params': batch_norm_params, 'weight_decay': 0})
+        param_groups.append({'params': new_params})
+        if transferred_params != []:
+            param_groups.append({'params': transferred_params, 'lr': transfer_lr})
+        if frozen_params != []:
+            param_groups.append({'params': frozen_params, 'lr': 0})
+        self.optim = optim(param_groups, **self.args.optimizer_params)
+
+        transferred_keys2 = [k for k in self.model2.state_dict().keys() if
+                             any(transfer_layer in k for transfer_layer in self.args.transfer_layers2) and
+                             not any(to_exclude in k for to_exclude in self.args.exclude_from_transfer2)]
+        frozen_keys2 = [k for k in self.model2.state_dict().keys() if
+                        any(to_freeze in k for to_freeze in self.args.frozen_layers2)]
+        frozen_params2 = [v for k, v in self.model2.named_parameters() if k in frozen_keys2]
+        transferred_params2 = [v for k, v in self.model2.named_parameters() if k in transferred_keys2]
+        new_params2 = [v for k, v in self.model2.named_parameters() if
+                       k not in transferred_keys2 and 'batch_norm' not in k and k not in frozen_keys2]
+        batch_norm_params2 = [v for k, v in self.model2.named_parameters() if
+                              'batch_norm' in k and k not in transferred_keys2 and k not in frozen_keys2]
+
+        transfer_lr2 = self.args.optimizer2_params['lr'] if self.args.transferred_lr2 == None else self.args.transferred_lr2
+        # the order of the params here determines in which order they will start being updated during warmup when using ordered warmup in the warmupwrapper
+        param_groups2 = []
+        if batch_norm_params2 != []:
+            param_groups2.append({'params': batch_norm_params2, 'weight_decay': 0})
+        param_groups2.append({'params': new_params2})
+        if transferred_params2 != []:
+            param_groups2.append({'params': transferred_params2, 'lr': transfer_lr2})
+        if frozen_params2 != []:
+            param_groups2.append({'params': frozen_params2, 'lr': 0})
+        self.optim2 = optim(param_groups2, **self.args.optimizer2_params)
 
     def save_model_state(self, epoch: int, checkpoint_name: str):
         torch.save({
