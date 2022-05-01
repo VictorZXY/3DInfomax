@@ -68,6 +68,8 @@ model_parameters:
     - amplification
     - attenuation
   readout_aggregators:
+    - mean
+    - max
     - sum
   pretrans_layers: 2
   posttrans_layers: 1
@@ -94,6 +96,8 @@ model2_parameters:
     - attenuation
   readout_aggregators:
     - mean
+    - max
+    - sum
   pretrans_layers: 2
   posttrans_layers: 1
   residual: True
