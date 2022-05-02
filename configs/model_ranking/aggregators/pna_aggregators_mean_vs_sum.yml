@@ -59,7 +59,7 @@ model_parameters:
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 6
+  propagation_depth: 4
   dropout: 0.0
   aggregators:
     - mean
@@ -86,7 +86,7 @@ model2_parameters:
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 6
+  propagation_depth: 4
   dropout: 0.0
   aggregators:
     - sum
