@@ -52,14 +52,14 @@ optimizer2_params:
 model_type: 'PNA'
 model_parameters:
   target_dim: 256
-  hidden_dim: 128
+  hidden_dim: 64
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 4
+  propagation_depth: 3
   dropout: 0.0
   aggregators:
     - mean
@@ -79,14 +79,14 @@ model_parameters:
 model2_type: 'PNA'
 model2_parameters:
   target_dim: 256
-  hidden_dim: 128
+  hidden_dim: 64
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
   #e^(log(forgetfulness ~0.001)/number of steps per epoch) = batch_norm_momentum  =>  e^(log(0.001)/100) = 0.970
   #batch_norm_momentum: 0.93
   readout_layers: 2
-  propagation_depth: 4
+  propagation_depth: 3
   dropout: 0.0
   aggregators:
     - mean
