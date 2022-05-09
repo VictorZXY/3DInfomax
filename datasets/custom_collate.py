@@ -2,6 +2,7 @@ import copy
 from typing import List, Tuple
 
 import dgl
+import numpy as np
 import torch
 import torch_geometric
 from torch.nn.utils.rnn import pad_sequence
@@ -17,6 +18,7 @@ def graph_collate(batch: List[Tuple]):
         targets = targets.unsqueeze(-1)
     return [batched_graph], targets
 
+
 def class_collate(batch):
     # batch is a list of tuple (graph, label)
     graphs = [e[0] for e in batch]
@@ -24,6 +26,7 @@ def class_collate(batch):
     labels = [e[1] for e in batch]
     labels = torch.stack(labels, 0)
     return g, labels
+
 
 def pytorch_geometric_collate(batch: List[Tuple]):
     graphs, targets = map(list, zip(*batch))
@@ -65,6 +68,7 @@ def contrastive_vae_collate(batch: List[Tuple]):
         cumulative_length += graphs[i].number_of_nodes()
 
     return [batched_graph], [batched_graph3d, torch.cat(pairwise_indices, dim=-1)], torch.cat(distances)
+
 
 def pairwise_distance_collate(batch: List[Tuple]):
     dgl_graphs, pairwise_indices, distances = map(list, zip(*batch))
@@ -207,6 +211,7 @@ class NodeDrop3dCollate(object):
 
         return [batched_graph], [batched_graph3d]
 
+
 class NodeDrop2d3DCollate(object):
     def __init__(self, drop_ratio):
         self.drop_ratio = drop_ratio
@@ -231,6 +236,7 @@ class NodeDrop2d3DCollate(object):
 
         return [batched_graph], [batched_graph3d]
 
+
 class NodeDropCollate(object):
     def __init__(self, drop_ratio):
         self.drop_ratio = drop_ratio
@@ -253,16 +259,16 @@ class NodeDropCollate(object):
 
         batched_graph = dgl.batch(graphs)
         batched_graph2 = dgl.batch(graphs2)
-       #device = batched_graph.device
-       #n_atoms = batched_graph.num_nodes()
+        # device = batched_graph.device
+        # n_atoms = batched_graph.num_nodes()
 
-        #perm = torch.randperm(n_atoms, device=device)
-        #remove_indices = perm[:int(self.drop_ratio * n_atoms)]
-        #batched_graph.remove_nodes(remove_indices)
-#
-        #perm = torch.randperm(n_atoms, device=device)
-        #remove_indices = perm[:int(self.drop_ratio * n_atoms)]
-        #batched_graph2.remove_nodes(remove_indices)
+        # perm = torch.randperm(n_atoms, device=device)
+        # remove_indices = perm[:int(self.drop_ratio * n_atoms)]
+        # batched_graph.remove_nodes(remove_indices)
+        #
+        # perm = torch.randperm(n_atoms, device=device)
+        # remove_indices = perm[:int(self.drop_ratio * n_atoms)]
+        # batched_graph2.remove_nodes(remove_indices)
 
         return [batched_graph], [batched_graph2]
 

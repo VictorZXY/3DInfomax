@@ -77,7 +77,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/model_ranking/hidden_dim/pna_hidden_dim_16vs16.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/finetune/tune_num_layers_10vs8_best.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -324,9 +324,6 @@ def train_class(args, device, metrics_dict):
         all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv', root=args.dataset_dir)
     elif args.dataset == 'class_pcba':
         all_data = DglGraphPropPredDataset(name='ogbg-molpcba', root=args.dataset_dir)
-    # TODO: add ZINC
-    # elif args.dataset == 'class_zinc':
-    #     all_data = [ZINCDataset(train), val, test]
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
     print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
@@ -536,9 +533,10 @@ def train_ogbg(args, device, metrics_dict):
 
 
 def train_zinc(args, device, metrics_dict):
-    train_data = ZINCDataset(split='train', device=device)
-    val_data = ZINCDataset(split='val', device=device)
-    test_data = ZINCDataset(split='test', device=device)
+    dataset = ZINCDataset(data_dir=args.dataset_dir)
+    train_data = dataset.train
+    val_data = dataset.val
+    test_data = dataset.test
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=train_data, device=device)
     print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
