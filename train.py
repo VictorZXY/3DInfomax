@@ -38,6 +38,7 @@ from trainer.byol_trainer import BYOLTrainer
 import seaborn
 
 from trainer.class_pre_trainer import CLASSTrainer, CLASSHybridBarlowTwinsTrainer
+from trainer.class_tune_trainer import CLASSFrozenFinetuneTrainer
 from trainer.graphcl_trainer import GraphCLTrainer
 from trainer.optimal_transport_trainer import OptimalTransportTrainer
 from trainer.philosophy_trainer import PhilosophyTrainer
@@ -77,7 +78,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/finetune/tune_num_layers_10vs8_best.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/finetune/tune_baseline.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -220,10 +221,19 @@ def get_trainer(args, model, data, device, metrics):
                            device=device, tensorboard_functions=tensorboard_functions,
                            scheduler_step_per_batch=args.scheduler_step_per_batch)
     else:
+        critic = None
         if args.trainer == 'optimal_transport':
             trainer = OptimalTransportTrainer
         elif args.trainer == 'graphcl_trainer':
             trainer = GraphCLTrainer
+        elif args.trainer == 'class_tune':
+            trainer = CLASSFrozenFinetuneTrainer
+            critic = globals()[args.critic_type](**args.critic_parameters)
+            return trainer(model=model, critic=critic, args=args, metrics=metrics, main_metric=args.main_metric,
+                           main_metric_goal=args.main_metric_goal, optim=globals()[args.optimizer],
+                           loss_func=globals()[args.loss_func](**args.loss_params), device=device,
+                           tensorboard_functions=tensorboard_functions,
+                           scheduler_step_per_batch=args.scheduler_step_per_batch)
         else:
             trainer = Trainer
         return trainer(model=model, args=args, metrics=metrics, main_metric=args.main_metric,
