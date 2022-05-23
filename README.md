@@ -1,4 +1,4 @@
-# Learning with CLASS (Collaborative Learning with Adversarial Self-Supervision)
+# Task-Agnostic Graph Neural Network Evaluation via Adversarial Collaboration
 
 A CST Part III research project
 
