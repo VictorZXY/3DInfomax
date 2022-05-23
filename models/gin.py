@@ -174,7 +174,7 @@ class GNN_node(nn.Module):
             if gnn_type == 'gin':
                 self.convs.append(GINConv(hidden_dim, batch_norm_momentum))
             elif gnn_type == 'gcn':
-                self.convs.append(GCNConv(hidden_dim, batch_norm_momentum))
+                self.convs.append(GCNConv(hidden_dim))
             else:
                 ValueError('Undefined GNN type called {}'.format(gnn_type))
 
