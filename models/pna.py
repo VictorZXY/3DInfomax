@@ -103,6 +103,7 @@ class PNA(nn.Module):
                  readout_hidden_dim=None,
                  readout_layers: int = 2,
                  residual: bool = True,
+                 edge_features: bool = True,
                  pairwise_distances: bool = False,
                  activation: Union[Callable, str] = "relu",
                  last_activation: Union[Callable, str] = "none",
@@ -112,12 +113,13 @@ class PNA(nn.Module):
                  dropout: float = 0.0,
                  posttrans_layers: int = 1,
                  pretrans_layers: int = 1,
-                 batch_norm_momentum=0.1,
+                 batch_norm_momentum: float = 0.1,
                  **kwargs):
         super(PNA, self).__init__()
         self.node_gnn = PNAGNN(hidden_dim=hidden_dim, aggregators=aggregators,
-                               scalers=scalers, residual=residual, pairwise_distances=pairwise_distances,
-                               activation=activation, last_activation=last_activation, mid_batch_norm=mid_batch_norm,
+                               scalers=scalers, residual=residual, edge_features=edge_features,
+                               pairwise_distances=pairwise_distances, activation=activation,
+                               last_activation=last_activation, mid_batch_norm=mid_batch_norm,
                                last_batch_norm=last_batch_norm, propagation_depth=propagation_depth, dropout=dropout,
                                posttrans_layers=posttrans_layers, pretrans_layers=pretrans_layers,
                                batch_norm_momentum=batch_norm_momentum
@@ -138,30 +140,34 @@ class PNA(nn.Module):
 
 class PNAGNN(nn.Module):
     def __init__(self, hidden_dim, aggregators: List[str], scalers: List[str],
-                 residual: bool = True, pairwise_distances: bool = False, activation: Union[Callable, str] = "relu",
-                 last_activation: Union[Callable, str] = "none", mid_batch_norm: bool = False,
-                 last_batch_norm: bool = False, batch_norm_momentum=0.1, propagation_depth: int = 5,
-                 dropout: float = 0.0, posttrans_layers: int = 1, pretrans_layers: int = 1, **kwargs):
+                 residual: bool = True, edge_features: bool = True, pairwise_distances: bool = False,
+                 activation: Union[Callable, str] = "relu", last_activation: Union[Callable, str] = "none",
+                 mid_batch_norm: bool = False, last_batch_norm: bool = False, batch_norm_momentum=0.1,
+                 propagation_depth: int = 5, dropout: float = 0.0, posttrans_layers: int = 1, pretrans_layers: int = 1,
+                 **kwargs):
         super(PNAGNN, self).__init__()
 
         self.mp_layers = nn.ModuleList()
+        self.edge_features = edge_features
+
+        in_dim_edges = hidden_dim if edge_features else 0
 
         for _ in range(propagation_depth):
             self.mp_layers.append(
-                PNALayer(in_dim=hidden_dim, out_dim=int(hidden_dim), in_dim_edges=hidden_dim, aggregators=aggregators,
+                PNALayer(in_dim=hidden_dim, out_dim=int(hidden_dim), in_dim_edges=in_dim_edges, aggregators=aggregators,
                          scalers=scalers, pairwise_distances=pairwise_distances, residual=residual, dropout=dropout,
                          activation=activation, last_activation=last_activation, mid_batch_norm=mid_batch_norm,
                          last_batch_norm=last_batch_norm, avg_d={"log": 1.0}, posttrans_layers=posttrans_layers,
-                         pretrans_layers=pretrans_layers, batch_norm_momentum=batch_norm_momentum
-                         ),
-
+                         pretrans_layers=pretrans_layers, batch_norm_momentum=batch_norm_momentum),
             )
         self.atom_encoder = AtomEncoder(emb_dim=hidden_dim)
-        self.bond_encoder = BondEncoder(emb_dim=hidden_dim)
+        if self.edge_features:
+            self.bond_encoder = BondEncoder(emb_dim=hidden_dim)
 
     def forward(self, graph: dgl.DGLGraph):
         graph.ndata['feat'] = self.atom_encoder(graph.ndata['feat'])
-        graph.edata['feat'] = self.bond_encoder(graph.edata['feat'])
+        if self.edge_features:
+            graph.edata['feat'] = self.bond_encoder(graph.edata['feat'])
 
         for mp_layer in self.mp_layers:
             mp_layer(graph)
@@ -172,7 +178,7 @@ class PNALayer(nn.Module):
                  activation: Union[Callable, str] = "relu", last_activation: Union[Callable, str] = "none",
                  dropout: float = 0.0, residual: bool = True, pairwise_distances: bool = False,
                  mid_batch_norm: bool = False, last_batch_norm: bool = False, batch_norm_momentum=0.1,
-                 avg_d: Dict[str, float] = {"log": 1.0}, posttrans_layers: int = 2, pretrans_layers: int = 1, ):
+                 avg_d: Dict[str, float] = {"log": 1.0}, posttrans_layers: int = 2, pretrans_layers: int = 1):
         super(PNALayer, self).__init__()
         self.aggregators = [PNA_AGGREGATORS[aggr] for aggr in aggregators]
         self.scalers = [PNA_SCALERS[scale] for scale in scalers]
