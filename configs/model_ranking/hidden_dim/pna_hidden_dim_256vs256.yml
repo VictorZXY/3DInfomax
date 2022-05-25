@@ -1,4 +1,4 @@
-experiment_name: 'hidden-dim-128vs16'
+experiment_name: 'hidden-dim-256vs256'
 
 trainer: class_hybrid_bt
 dataset: class_pcba
@@ -52,7 +52,7 @@ optimizer2_params:
 model_type: 'PNA'
 model_parameters:
   target_dim: 256
-  hidden_dim: 128
+  hidden_dim: 256
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
@@ -81,7 +81,7 @@ model_parameters:
 model2_type: 'PNA'
 model2_parameters:
   target_dim: 256
-  hidden_dim: 16
+  hidden_dim: 256
   mid_batch_norm: True
   last_batch_norm: True
   readout_batchnorm: True
