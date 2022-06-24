@@ -148,7 +148,7 @@ class Trainer:
                 if optim == None and self.val_per_batch:  # during validation or testing when we want to average metrics over all the data in that dataloader
                     metrics_results = self.evaluate_metrics(predictions, targets, val=True)
                     metrics_results[type(self.loss_func).__name__] = loss.item()
-                    if i ==0 and epoch in self.args.models_to_save:
+                    if i == 0 and epoch in self.args.models_to_save:
                         self.run_tensorboard_functions(predictions, targets, step=self.optim_steps, data_split='val')
                     for key, value in metrics_results.items():
                         total_metrics[key] += value
