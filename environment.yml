@@ -1,4 +1,4 @@
-name: learning-with-class
+name: GraphAC
 channels:
   - defaults
 dependencies:
