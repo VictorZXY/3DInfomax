@@ -78,7 +78,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/finetune/tune_baseline.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/model_ranking/num_layers/pna_num_layers_2vs2.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -334,6 +334,8 @@ def train_class(args, device, metrics_dict):
         all_data = DglGraphPropPredDataset(name='ogbg-molfreesolv', root=args.dataset_dir)
     elif args.dataset == 'class_pcba':
         all_data = DglGraphPropPredDataset(name='ogbg-molpcba', root=args.dataset_dir)
+    elif args.dataset == 'class_code2':
+        all_data = DglGraphPropPredDataset(name='ogbg-code2', root=args.dataset_dir)
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
     print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
