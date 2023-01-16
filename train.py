@@ -3,52 +3,47 @@ import concurrent.futures
 import copy
 import os
 import re
+import seaborn
+import yaml
 
 from dgl.dataloading import GraphDataLoader
-from icecream import install
 from ogb.graphproppred import DglGraphPropPredDataset
-from ogb.lsc import DglPCQM4MDataset, PCQM4MEvaluator
-from ogb.utils import smiles2graph
+from icecream import install
 
 from commons.utils import seed_all, get_random_indices, TENSORBOARD_FUNCTIONS
 from datasets.ZINC_dataset import ZINCDataset
-from datasets.bace_geomol_feat import BACEGeomol
-from datasets.bace_geomol_featurization_of_qm9 import BACEGeomolQM9Featurization
-from datasets.bace_geomol_random_split import BACEGeomolRandom
-from datasets.bbbp_geomol_feat import BBBPGeomol
-from datasets.bbbp_geomol_featurization_of_qm9 import BBBPGeomolQM9Featurization
-from datasets.bbbp_geomol_random_split import BBBPGeomolRandom
-from datasets.esol_geomol_feat import ESOLGeomol
-from datasets.esol_geomol_featurization_of_qm9 import ESOLGeomolQM9Featurization
-from datasets.file_loader_drugs import FileLoaderDrugs
-from datasets.file_loader_qm9 import FileLoaderQM9
-from datasets.geom_drugs_dataset import GEOMDrugs
-from datasets.geom_qm9_dataset import GEOMqm9
-from datasets.geomol_geom_qm9_dataset import QM9GeomolFeatDataset
-from datasets.lipo_geomol_feat import LIPOGeomol
-from datasets.lipo_geomol_featurization_of_qm9 import LIPOGeomolQM9Featurization
 from datasets.ogbg_dataset_extension import OGBGDatasetExtension
-from datasets.qm9_dataset_geomol_conformers import QM9DatasetGeomolConformers
-from datasets.qm9_dataset_rdkit_conformers import QM9DatasetRDKITConformers
-
-from datasets.qm9_geomol_featurization import QM9GeomolFeaturization
-from datasets.qmugs_dataset import QMugsDataset
-from trainer.byol_trainer import BYOLTrainer
-
-import seaborn
+# from datasets.bace_geomol_feat import BACEGeomol
+# from datasets.bace_geomol_featurization_of_qm9 import BACEGeomolQM9Featurization
+# from datasets.bace_geomol_random_split import BACEGeomolRandom
+# from datasets.bbbp_geomol_feat import BBBPGeomol
+# from datasets.bbbp_geomol_featurization_of_qm9 import BBBPGeomolQM9Featurization
+# from datasets.bbbp_geomol_random_split import BBBPGeomolRandom
+# from datasets.esol_geomol_feat import ESOLGeomol
+# from datasets.esol_geomol_featurization_of_qm9 import ESOLGeomolQM9Featurization
+# from datasets.file_loader_drugs import FileLoaderDrugs
+# from datasets.file_loader_qm9 import FileLoaderQM9
+# from datasets.geom_drugs_dataset import GEOMDrugs
+# from datasets.geom_qm9_dataset import GEOMqm9
+# from datasets.geomol_geom_qm9_dataset import QM9GeomolFeatDataset
+# from datasets.lipo_geomol_feat import LIPOGeomol
+# from datasets.lipo_geomol_featurization_of_qm9 import LIPOGeomolQM9Featurization
+# from datasets.qm9_dataset import QM9Dataset
+# from datasets.qm9_dataset_geomol_conformers import QM9DatasetGeomolConformers
+# from datasets.qm9_dataset_rdkit_conformers import QM9DatasetRDKITConformers
+# from datasets.qm9_geomol_featurization import QM9GeomolFeaturization
+# from datasets.qmugs_dataset import QMugsDataset
+# from trainer.byol_trainer import BYOLTrainer
 
 from trainer.class_pre_trainer import CLASSTrainer, CLASSHybridBarlowTwinsTrainer
 from trainer.class_tune_trainer import CLASSFrozenFinetuneTrainer
-from trainer.graphcl_trainer import GraphCLTrainer
-from trainer.optimal_transport_trainer import OptimalTransportTrainer
-from trainer.philosophy_trainer import PhilosophyTrainer
-from trainer.self_supervised_ae_trainer import SelfSupervisedAETrainer
+# from trainer.graphcl_trainer import GraphCLTrainer
+# from trainer.optimal_transport_trainer import OptimalTransportTrainer
+# from trainer.philosophy_trainer import PhilosophyTrainer
+# from trainer.self_supervised_ae_trainer import SelfSupervisedAETrainer
+# from trainer.self_supervised_alternating_trainer import SelfSupervisedAlternatingTrainer
+# from trainer.self_supervised_trainer import SelfSupervisedTrainer
 
-from trainer.self_supervised_alternating_trainer import SelfSupervisedAlternatingTrainer
-
-from trainer.self_supervised_trainer import SelfSupervisedTrainer
-
-import yaml
 from datasets.custom_collate import *  # do not remove
 from models import *  # do not remove
 from torch.nn import *  # do not remove
@@ -57,7 +52,6 @@ from commons.losses import *  # do not remove
 from torch.optim.lr_scheduler import *  # do not remove
 from datasets.samplers import *  # do not remove
 
-from datasets.qm9_dataset import QM9Dataset
 from torch.utils.data import DataLoader, Subset
 
 from trainer.metrics import QM9DenormalizedL1, QM9DenormalizedL2, \
@@ -191,19 +185,7 @@ def get_trainer(args, model, data, device, metrics):
             **args.model2_parameters)
         print('model2 trainable params: ', sum(p.numel() for p in model2.parameters() if p.requires_grad))
 
-        critic = None
-        if args.trainer == 'byol':
-            ssl_trainer = BYOLTrainer
-        elif args.trainer == 'alternating':
-            ssl_trainer = SelfSupervisedAlternatingTrainer
-        elif args.trainer == 'autoencoder':
-            ssl_trainer = SelfSupervisedAETrainer
-        elif args.trainer == 'contrastive':
-            ssl_trainer = SelfSupervisedTrainer
-        elif args.trainer == 'philosophy':
-            ssl_trainer = PhilosophyTrainer
-            critic = globals()[args.critic_type](**args.critic_parameters)
-        elif args.trainer == 'class':
+        if args.trainer == 'class':
             ssl_trainer = CLASSTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
             critic2 = globals()[args.critic2_type](**args.critic2_parameters)
@@ -222,11 +204,7 @@ def get_trainer(args, model, data, device, metrics):
                            scheduler_step_per_batch=args.scheduler_step_per_batch)
     else:
         critic = None
-        if args.trainer == 'optimal_transport':
-            trainer = OptimalTransportTrainer
-        elif args.trainer == 'graphcl_trainer':
-            trainer = GraphCLTrainer
-        elif args.trainer == 'class_tune':
+        if args.trainer == 'class_tune':
             trainer = CLASSFrozenFinetuneTrainer
             critic = globals()[args.critic_type](**args.critic_parameters)
             return trainer(model=model, critic=critic, args=args, metrics=metrics, main_metric=args.main_metric,
@@ -307,20 +285,8 @@ def train(args):
                     'dimension_covariance': DimensionCovariance()
                     }
     print('using device: ', device)
-    if args.dataset == 'qm9' or args.dataset == 'qm9_rdkit' or args.dataset == 'qm9_neuralconf':
-        return train_qm9(args, device, metrics_dict)
-    elif args.dataset == 'zinc':
+    if args.dataset == 'zinc':
         return train_zinc(args, device, metrics_dict)
-    elif args.dataset == 'qmugs':
-        return train_geom(args, device, metrics_dict)
-    elif args.dataset == 'drugs' or args.dataset == 'geom_qm9' or args.dataset == 'qm9_geomol_feat' or args.dataset == 'file_loader_drugs' or args.dataset == 'file_loader_qm9':
-        return train_geom(args, device, metrics_dict)
-    elif args.dataset == 'qm9_geomol':
-        return train_qm9_geomol_featurization(args, device, metrics_dict)
-    elif 'pcqm4m' == args.dataset:
-        return train_pcqm4m(args, device, metrics_dict)
-    elif 'geomol' in args.dataset:
-        return train_geomol(args, device, metrics_dict)
     elif 'ogbg' in args.dataset:
         return train_ogbg(args, device, metrics_dict)
     elif 'class' in args.dataset:
@@ -365,145 +331,6 @@ def train_class(args, device, metrics_dict):
     metrics = {metric: metrics_dict[metric] for metric in args.metrics if metric != 'qm9_properties'}
 
     trainer = get_trainer(args=args, model=model, data=all_data, device=device, metrics=metrics)
-    val_metrics = trainer.train(train_loader, val_loader)
-    if args.eval_on_test:
-        test_metrics = trainer.evaluation(test_loader, data_split='test')
-        return val_metrics, test_metrics, trainer.writer.log_dir
-    return val_metrics
-
-
-def train_geomol(args, device, metrics_dict):
-    if args.dataset == 'bace_geomol':
-        dataset = BACEGeomol
-    elif args.dataset == 'bbbp_geomol':
-        dataset = BBBPGeomol
-    elif args.dataset == 'bace_geomol_random':
-        dataset = BACEGeomolRandom
-    elif args.dataset == 'bbbp_geomol_random':
-        dataset = BBBPGeomolRandom
-    elif args.dataset == 'esol_geomol':
-        dataset = ESOLGeomol
-    elif args.dataset == 'lipo_geomol':
-        dataset = LIPOGeomol
-    elif args.dataset == 'esol_geomol_qm9_featurization':
-        dataset = ESOLGeomolQM9Featurization
-    elif args.dataset == 'lipo_geomol_qm9_featurization':
-        dataset = LIPOGeomolQM9Featurization
-    if args.dataset == 'bace_geomol_qm9_featurization':
-        dataset = BACEGeomolQM9Featurization
-    elif args.dataset == 'bbbp_geomol_qm9_featurization':
-        dataset = BBBPGeomolQM9Featurization
-
-    train = dataset(split='train', device=device)
-    val = dataset(split='val', device=device)
-    test = dataset(split='test', device=device)
-
-    model = globals()[args.model_type](node_dim=train[0][0].z.shape[1], edge_dim=train[0][0].edge_attr.shape[1],
-                                       **args.model_parameters)
-
-    if args.pretrain_checkpoint:
-        checkpoint = torch.load(args.pretrain_checkpoint, map_location=device)
-        pretrained_gnn_dict = {k.replace('student.', ''): v for k, v in checkpoint.items() if any(
-            transfer_layer in k for transfer_layer in args.transfer_layers) and 'teacher' not in k and not any(
-            to_exclude in k for to_exclude in args.exclude_from_transfer)}
-        model_state_dict = model.state_dict()
-        model_state_dict.update(pretrained_gnn_dict)  # update the gnn layers with the pretrained weights
-        model.load_state_dict(model_state_dict)
-
-    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
-    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
-        args.collate_function](**args.collate_params)
-
-    train_loader = DataLoader(train, batch_size=args.batch_size, shuffle=True,
-                              collate_fn=collate_function)
-    val_loader = DataLoader(val, batch_size=args.batch_size, collate_fn=collate_function)
-    test_loader = DataLoader(test, batch_size=args.batch_size, collate_fn=collate_function)
-
-    metrics = {metric: metrics_dict[metric] for metric in args.metrics}
-    metric_name = [key for key in metrics_dict.keys() if 'ogbg-mol' + args.dataset.split('_')[0] == key.lower()][0]
-    metrics[metric_name] = metrics_dict[metric_name]
-    args.main_metric = metric_name
-    args.val_per_batch = False
-    args.main_metric_goal = 'min' if metrics[metric_name].metric == 'rmse' else 'max'
-    trainer = get_trainer(args=args, model=model, data=train, device=device, metrics=metrics)
-    val_metrics = trainer.train(train_loader, val_loader)
-    if args.eval_on_test:
-        test_metrics = trainer.evaluation(test_loader, data_split='test')
-        return val_metrics, test_metrics, trainer.writer.log_dir
-    return val_metrics
-
-
-def train_qm9_geomol_featurization(args, device, metrics_dict):
-    all_data = QM9GeomolFeaturization(return_types=args.required_data, target_tasks=args.targets, device=device,
-                                      dist_embedding=args.dist_embedding, num_radial=args.num_radial)
-
-    all_idx = get_random_indices(len(all_data), args.seed_data)
-    model_idx = all_idx[:100000]
-    test_idx = all_idx[len(model_idx): len(model_idx) + int(0.1 * len(all_data))]
-    val_idx = all_idx[len(model_idx) + len(test_idx):]
-    train_idx = model_idx[:args.num_train]
-    # for debugging purposes:
-    # test_idx = all_idx[len(model_idx): len(model_idx) + 200]
-    # val_idx = all_idx[len(model_idx) + len(test_idx): len(model_idx) + len(test_idx) + 3000]
-
-    model = globals()[args.model_type](node_dim=all_data[0][0].z.shape[1], edge_dim=all_data[0][0].edge_attr.shape[1],
-                                       **args.model_parameters)
-
-    if args.pretrain_checkpoint:
-        checkpoint = torch.load(args.pretrain_checkpoint, map_location=device)
-        pretrained_gnn_dict = {k.replace('student.', ''): v for k, v in checkpoint.items() if any(
-            transfer_layer in k for transfer_layer in args.transfer_layers) and 'teacher' not in k and not any(
-            to_exclude in k for to_exclude in args.exclude_from_transfer)}
-        model_state_dict = model.state_dict()
-        model_state_dict.update(pretrained_gnn_dict)  # update the gnn layers with the pretrained weights
-        model.load_state_dict(model_state_dict)
-
-    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print(f'Training on {len(train_idx)} samples from the model sequences')
-    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
-        args.collate_function](**args.collate_params)
-
-    train_loader = DataLoader(Subset(all_data, train_idx), batch_size=args.batch_size, shuffle=True,
-                              collate_fn=collate_function)
-    val_loader = DataLoader(Subset(all_data, val_idx), batch_size=args.batch_size, collate_fn=collate_function)
-    test_loader = DataLoader(Subset(all_data, test_idx), batch_size=args.batch_size, collate_fn=collate_function)
-
-    metrics_dict.update({'mae_denormalized': QM9DenormalizedL1(dataset=all_data),
-                         'mse_denormalized': QM9DenormalizedL2(dataset=all_data)})
-    metrics = {metric: metrics_dict[metric] for metric in args.metrics if metric != 'qm9_properties'}
-    if 'qm9_properties' in args.metrics:
-        metrics.update(
-            {task: QM9SingleTargetDenormalizedL1(dataset=all_data, task=task) for task in all_data.target_tasks})
-
-    trainer = get_trainer(args=args, model=model, data=all_data, device=device, metrics=metrics)
-    val_metrics = trainer.train(train_loader, val_loader)
-    if args.eval_on_test:
-        test_metrics = trainer.evaluation(test_loader, data_split='test')
-        return val_metrics, test_metrics, trainer.writer.log_dir
-    return val_metrics
-
-
-def train_pcqm4m(args, device, metrics_dict):
-    dataset = DglPCQM4MDataset(smiles2graph=smiles2graph)
-    split_idx = dataset.get_idx_split()
-    split_idx["train"] = split_idx["train"][:args.num_train]
-    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
-        args.collate_function](**args.collate_params)
-
-    train_loader = DataLoader(Subset(dataset, split_idx["train"]), batch_size=args.batch_size, shuffle=True,
-                              collate_fn=collate_function)
-    val_loader = DataLoader(Subset(dataset, split_idx["valid"]), batch_size=args.batch_size, shuffle=False,
-                            collate_fn=collate_function)
-    test_loader = DataLoader(Subset(dataset, split_idx["test"]), batch_size=args.batch_size, shuffle=False,
-                             collate_fn=collate_function)
-
-    model, num_pretrain, transfer_from_same_dataset = load_model(args, data=dataset, device=device)
-
-    metrics = {metric: metrics_dict[metric] for metric in args.metrics}
-    metrics[args.dataset] = metrics_dict[args.dataset]
-    args.main_metric = args.dataset
-    args.main_metric_goal = 'min'
-    trainer = get_trainer(args=args, model=model, data=dataset, device=device, metrics=metrics)
     val_metrics = trainer.train(train_loader, val_loader)
     if args.eval_on_test:
         test_metrics = trainer.evaluation(test_loader, data_split='test')
@@ -565,132 +392,6 @@ def train_zinc(args, device, metrics_dict):
 
     metrics = {metric: metrics_dict[metric] for metric in args.metrics}
     trainer = get_trainer(args=args, model=model, data=train_data, device=device, metrics=metrics)
-    val_metrics = trainer.train(train_loader, val_loader)
-    if args.eval_on_test:
-        test_metrics = trainer.evaluation(test_loader, data_split='test')
-        return val_metrics, test_metrics, trainer.writer.log_dir
-    return val_metrics
-
-
-def train_geom(args, device, metrics_dict):
-    if args.dataset == 'drugs':
-        dataset = GEOMDrugs
-    elif args.dataset == 'geom_qm9':
-        dataset = GEOMqm9
-    elif args.dataset == 'qmugs':
-        dataset = QMugsDataset
-    elif args.dataset == 'qm9_geomol_feat':
-        dataset = QM9GeomolFeatDataset
-    elif args.dataset == 'file_loader_drugs':
-        dataset = FileLoaderDrugs
-    elif args.dataset == 'file_loader_qm9':
-        dataset = FileLoaderQM9
-    all_data = dataset(return_types=args.required_data, target_tasks=args.targets, device=device,
-                       num_conformers=args.num_conformers)
-    all_idx = get_random_indices(len(all_data), args.seed_data)
-    if args.dataset == 'drugs':
-        model_idx = all_idx[:280000]  # 304293 in all data
-    elif args.dataset in ['geom_qm9', 'qm9_geomol_feat']:
-        model_idx = all_idx[:100000]
-    elif args.dataset == 'qmugs':
-        model_idx = all_idx[:620000]
-    elif args.dataset == 'file_loader_qm9':
-        model_idx = all_idx[:80000]  # 107857 molecules in all_data
-    elif args.dataset == 'file_loader_drugs':
-        model_idx = all_idx[:160000]
-    test_idx = all_idx[len(model_idx): len(model_idx) + int(0.05 * len(all_data))]
-    if args.dataset in ['file_loader_drugs', 'file_loader_qm9']:
-        val_idx = all_idx[max(len(model_idx) + len(test_idx), len(all_data) - 1000):]
-    else:
-        val_idx = all_idx[len(model_idx) + len(test_idx):]
-    train_idx = model_idx[:args.num_train]
-    # for debugging purposes:
-    # test_idx = all_idx[len(model_idx): len(model_idx) + 200]
-    # val_idx = all_idx[len(model_idx) + len(test_idx): len(model_idx) + len(test_idx) + 3000]
-
-    model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
-    if transfer_from_same_dataset:
-        train_idx = model_idx[num_pretrain: num_pretrain + args.num_train]
-    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
-
-    print(f'Training on {len(train_idx)} samples from the model sequences')
-    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
-        args.collate_function](**args.collate_params)
-
-    if args.train_sampler != None:
-        sampler = globals()[args.train_sampler](data_source=all_data, batch_size=args.batch_size, indices=train_idx)
-        train_loader = DataLoader(Subset(all_data, train_idx), batch_sampler=sampler, collate_fn=collate_function)
-    else:
-        train_loader = DataLoader(Subset(all_data, train_idx), batch_size=args.batch_size, shuffle=True,
-                                  collate_fn=collate_function)
-    val_loader = DataLoader(Subset(all_data, val_idx), batch_size=args.batch_size, collate_fn=collate_function)
-    test_loader = DataLoader(Subset(all_data, test_idx), batch_size=args.batch_size, collate_fn=collate_function)
-
-    if 'mae_denormalized' in args.metrics:
-        metrics_dict.update({'mae_denormalized': QM9DenormalizedL1(dataset=all_data),
-                             'mse_denormalized': QM9DenormalizedL2(dataset=all_data)})
-    metrics = {metric: metrics_dict[metric] for metric in args.metrics}
-    trainer = get_trainer(args=args, model=model, data=all_data, device=device, metrics=metrics)
-    val_metrics = trainer.train(train_loader, val_loader)
-    if args.eval_on_test:
-        test_metrics = trainer.evaluation(test_loader, data_split='test')
-        return val_metrics, test_metrics, trainer.writer.log_dir
-    return val_metrics
-
-
-def train_qm9(args, device, metrics_dict):
-    if args.dataset == 'qm9_rdkit':
-        all_data = QM9DatasetRDKITConformers(return_types=args.required_data, target_tasks=args.targets, device=device,
-                                             dist_embedding=args.dist_embedding, num_radial=args.num_radial)
-    elif args.dataset == 'qm9_neuralconf':
-
-        all_data = QM9DatasetGeomolConformers(return_types=args.required_data, target_tasks=args.targets, device=device,
-                                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
-    else:
-        all_data = QM9Dataset(return_types=args.required_data, target_tasks=args.targets, device=device,
-                              dist_embedding=args.dist_embedding, num_radial=args.num_radial)
-
-    all_idx = get_random_indices(len(all_data), args.seed_data)
-    model_idx = all_idx[:100000]
-    test_idx = all_idx[len(model_idx): len(model_idx) + int(0.1 * len(all_data))]
-    val_idx = all_idx[len(model_idx) + len(test_idx):]
-    train_idx = model_idx[:args.num_train]
-
-    if args.num_val != None:
-        train_idx = all_idx[:args.num_train]
-        val_idx = all_idx[len(train_idx): len(train_idx) + args.num_val]
-        test_idx = all_idx[len(train_idx) + args.num_val: len(train_idx) + 2 * args.num_val]
-    # for debugging purposes:
-    # test_idx = all_idx[len(model_idx): len(model_idx) + 20]
-    # val_idx = all_idx[len(model_idx) + len(test_idx): len(model_idx) + len(test_idx) + 30]
-
-    model, num_pretrain, transfer_from_same_dataset = load_model(args, data=all_data, device=device)
-    if transfer_from_same_dataset:
-        train_idx = model_idx[num_pretrain: num_pretrain + args.num_train]
-    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
-
-    print(f'Training on {len(train_idx)} samples from the model sequences')
-    print(f'Validating on {len(val_idx)} samples')
-    print(f'Testing on {len(test_idx)} samples')
-    collate_function = globals()[args.collate_function] if args.collate_params == {} else globals()[
-        args.collate_function](**args.collate_params)
-    if args.train_sampler != None:
-        sampler = globals()[args.train_sampler](data_source=all_data, batch_size=args.batch_size, indices=train_idx)
-        train_loader = DataLoader(Subset(all_data, train_idx), batch_sampler=sampler, collate_fn=collate_function)
-    else:
-        train_loader = DataLoader(Subset(all_data, train_idx), batch_size=args.batch_size, shuffle=True,
-                                  collate_fn=collate_function)
-    val_loader = DataLoader(Subset(all_data, val_idx), batch_size=args.batch_size, collate_fn=collate_function)
-    test_loader = DataLoader(Subset(all_data, test_idx), batch_size=args.batch_size, collate_fn=collate_function)
-
-    metrics_dict.update({'mae_denormalized': QM9DenormalizedL1(dataset=all_data),
-                         'mse_denormalized': QM9DenormalizedL2(dataset=all_data)})
-    metrics = {metric: metrics_dict[metric] for metric in args.metrics if metric != 'qm9_properties'}
-    if 'qm9_properties' in args.metrics:
-        metrics.update(
-            {task: QM9SingleTargetDenormalizedL1(dataset=all_data, task=task) for task in all_data.target_tasks})
-
-    trainer = get_trainer(args=args, model=model, data=all_data, device=device, metrics=metrics)
     val_metrics = trainer.train(train_loader, val_loader)
     if args.eval_on_test:
         test_metrics = trainer.evaluation(test_loader, data_split='test')

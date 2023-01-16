@@ -6,9 +6,6 @@ from torch.distributions import Categorical
 from torch.utils.data import Sampler, RandomSampler, Subset
 from tqdm import tqdm
 
-from datasets.qm9_dataset import QM9Dataset
-
-
 class ConstantNumberAtomsCategorical(Sampler[List[int]]):
     r"""Wraps another sampler to yield a mini-batch of indices.
 
@@ -20,7 +17,7 @@ class ConstantNumberAtomsCategorical(Sampler[List[int]]):
 
     """
 
-    def __init__(self, data_source: QM9Dataset, batch_size: int, indices: List, replacement: bool = False,
+    def __init__(self, data_source, batch_size: int, indices: List, replacement: bool = False,
                  num_samples: Optional[int] = None, generator=None, drop_last=False) -> None:
         super(Sampler, self).__init__()
         n_atoms = data_source.meta_dict['n_atoms'][indices]
@@ -76,7 +73,7 @@ class ConstantNumberAtomsChunks(Sampler[List[int]]):
 
     """
 
-    def __init__(self, data_source: QM9Dataset, batch_size: int, indices: List, drop_last=False,
+    def __init__(self, data_source, batch_size: int, indices: List, drop_last=False,
                  number_chunks=50) -> None:
         super(Sampler, self).__init__()
         self.number_chunks = number_chunks
