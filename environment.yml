@@ -7,10 +7,10 @@ dependencies:
   - pytorch::torchvision=0.13.1
   - pytorch::torchaudio=0.12.1
   - pytorch::cudatoolkit=11.3
-  - pyg::pyg
+  - pyg::pyg  # use pip if not working
   - dglteam::dgl-cuda11.3
   - conda-forge::ogb
-  - conda-forge::rdkit
+  - conda-forge::rdkit  # use pip if not working
   - conda-forge::tensorboard
   - conda-forge::pyaml
   - conda-forge::icecream
