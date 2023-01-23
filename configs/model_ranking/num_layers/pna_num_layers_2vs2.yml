@@ -1,8 +1,8 @@
 experiment_name: 'num-layers-2vs2'
 
 trainer: class_hybrid_bt
-dataset: class_code2
-dataset_dir: dataset #/rds/user/xz398/hpc-work/learning-with-class/dataset
+dataset: class_pcba
+dataset_dir: /rds/user/xz398/hpc-work/learning-with-class/dataset
 num_epochs: 50
 batch_size: 512
 log_iterations: 1
@@ -18,7 +18,7 @@ loss_params:
   variance_reg: 0
   covariance_reg: 1
 num_train: 50000
-seed: 42
+seed: 0
 
 metrics:
   - batch_variance
