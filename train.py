@@ -37,6 +37,7 @@ from datasets.ogbg_dataset_extension import OGBGDatasetExtension
 
 from trainer.class_pre_trainer import CLASSTrainer, CLASSHybridBarlowTwinsTrainer
 from trainer.class_tune_trainer import CLASSFrozenFinetuneTrainer
+from trainer.pcba_trainer import PCBATrainer
 # from trainer.graphcl_trainer import GraphCLTrainer
 # from trainer.optimal_transport_trainer import OptimalTransportTrainer
 # from trainer.philosophy_trainer import PhilosophyTrainer
@@ -72,7 +73,7 @@ seaborn.set_theme()
 
 def parse_arguments():
     p = argparse.ArgumentParser()
-    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/model_ranking/num_layers/pna_num_layers_2vs2.yml')
+    p.add_argument('--config', type=argparse.FileType(mode='r'), default='configs/supervised_training/sl_train_pna_10_layers_256_dims.yml')
     p.add_argument('--experiment_name', type=str, help='name that will be added to the runs folder output')
     p.add_argument('--logdir', type=str, default='runs', help='tensorboard log directory')
     p.add_argument('--num_epochs', type=int, default=2500, help='number of times to iterate through all samples')
@@ -212,6 +213,8 @@ def get_trainer(args, model, data, device, metrics):
                            loss_func=globals()[args.loss_func](**args.loss_params), device=device,
                            tensorboard_functions=tensorboard_functions,
                            scheduler_step_per_batch=args.scheduler_step_per_batch)
+        elif args.trainer == 'pcba':
+            trainer = PCBATrainer
         else:
             trainer = Trainer
         return trainer(model=model, args=args, metrics=metrics, main_metric=args.main_metric,
@@ -339,7 +342,8 @@ def train_class(args, device, metrics_dict):
 
 
 def train_ogbg(args, device, metrics_dict):
-    dataset = OGBGDatasetExtension(return_types=args.required_data, device=device, name=args.dataset)
+    # dataset = OGBGDatasetExtension(return_types=args.required_data, device=device, name=args.dataset)
+    dataset = DglGraphPropPredDataset(name=args.dataset, root=args.dataset_dir)
     split_idx = dataset.get_idx_split()
     if args.force_random_split == True:
         all_idx = get_random_indices(len(dataset), args.seed_data)
@@ -357,6 +361,7 @@ def train_ogbg(args, device, metrics_dict):
                              collate_fn=collate_function)
 
     model, num_pretrain, transfer_from_same_dataset = load_model(args, data=dataset, device=device)
+    print('model trainable params: ', sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     metrics = {metric: metrics_dict[metric] for metric in args.metrics}
     metrics[args.dataset] = metrics_dict[args.dataset]
