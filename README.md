@@ -1,16 +1,50 @@
 # Task-Agnostic Graph Neural Network Evaluation via Adversarial Collaboration
 
-A CST Part III research project
+[Paper](https://arxiv.org/abs/2301.11517) | [Dissertation](https://victorzxy.github.io/project/graphac/MEng-Dissertation-GraphAC.pdf)
 
-Project supervisor: Professor Pietro Liò \
-Project co-supervisors: Dr Dominique Beaini, Hannes Stärk
+## Abstract
 
-### Abstract
+It has been increasingly demanding to develop reliable Graph Neural Network (GNN) evaluation methods to quantify the progress of the rapidly expanding GNN research. Existing GNN benchmarking methods focus on comparing the GNNs with respect to their performances on some node/graph classification/regression tasks in certain datasets. There lacks a principled, task-agnostic method to directly compare two GNNs. Moreover, most of the existing graph self-supervised learning (SSL) works incorporate handcrafted augmentations to the graph, which has several severe difficulties due to the unique characteristics of graph-structured data. To address the aforementioned issues, we propose GraphAC (Graph Adversarial Collaboration) – a conceptually novel, principled, task-agnostic, and stable framework for evaluating GNNs through contrastive self-supervision. GraphAC succeeds in distinguishing GNNs of different expressiveness across various aspects, and has been proven to be a principled and reliable GNN evaluation method, eliminating the need for handcrafted augmentations for stable SSL.
 
-Graph Neural Networks (GNNs) have experienced rapid growth over the last decade, and have been successful in many real-world applications. In order to cope with the rapid growth of this field, it is increasingly demanding to develop reliable GNN evaluation methods to facilitate GNN research and quantify their progress. Current GNN benchmarking methods all focus on comparing the GNNs with respect to their training performances on some node/graph classification/regression tasks in certain datasets, but there has not been any principled, task-agnostic method to directly compare the two GNNs.
+![](./.GraphAC-architecture.png)
 
-Furthermore, learning informative representations of graph-structured data using self-supervised learning (SSL) is becoming crucial in many real-world tasks nowadays, when labelled data are expensive and limited. Most of the existing graph SSL works incorporate handcrafted augmentations to the graph, which has several severe difficulties due to the unique characteristics of graph-structured data. Therefore, it is highly needed to develop a principled SSL framework across various types of graphs, that does not require handcrafted augmentations.
+## How to run
 
-In this project, I tackled both questions above, and developed GraphAC (Graph Adversarial Collaboration), a conceptually novel, principled, task-agnostic, and stable framework for evaluating GNNs through contrastive self-supervision. It consists of two different GNNs directly competing against each other, with the more expressive GNN wins by producing more informative graph representations. I built two frameworks for GraphAC, and designed a novel objective function that enables stable and effective training of two different GNNs, inspired by Barlow Twins. 
+### Step 1: Setup Environment
 
-The experimental results show that GraphAC succeeds in distinguishing GNNs of different expressivity across various aspects including the number of layers, hidden dimensionality, aggregators, GNN architecture and edge features, and always allow more expressive GNNs to win with statistically significant difference. GraphAC proved to be a principled and reliable GNN evaluation method, and enables stable SSL without needing handcrafted augmentations.
+Please set up the environment using [Conda](https://docs.conda.io/projects/conda/en/stable/). Clone the current repository:
+
+    git clone https://github.com/VictorZXY/GraphAC
+
+Create a new environment with all required packages using [`environment.yml`](./environment.yml) (this can take a while). While in the project directory run:
+
+    conda env create -f environment.yml
+
+Activate the environment:
+
+    conda activate GraphAC
+
+### Step 2: Train the GraphAC Framework
+
+A number of configuration files have been preset in `configs/model_ranking`. For example:
+
+    python train.py --config=configs/model_ranking/hidden_dim/pna_hidden_dim_256vs128.yml
+    
+During pre-training a directory is created in the `runs` directory that contains the logs and the trained models. You can start TensorBoard and navigate to `localhost:6006` in your browser to monitor the training process:
+
+    tensorboard --logdir=runs --port=6006
+    
+## Cite this project
+
+```bibtex
+@article{Zhao2023GraphAC,
+    title={Task-Agnostic Graph Neural Network Evaluation via Adversarial Collaboration},
+    author={Xiangyu Zhao and 
+        Hannes St{\"a}rk and 
+        Dominique Beaini and 
+        Pietro Li{\`o} and 
+        Yiren Zhao},
+    journal={arXiv preprint arXiv:2301.11517},
+    year={2023}
+}
+```
