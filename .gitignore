@@ -112,6 +112,9 @@ dmypy.json
 .idea
 .idea/
 
+# macOS stuff
+._*
+
 # Project specific
 dataset
 dataset/
