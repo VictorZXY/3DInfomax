@@ -2,13 +2,13 @@ name: GraphAC
 channels:
   - defaults
 dependencies:
-  - python=3.7
-  - pytorch::pytorch=1.12.1
-  - pytorch::torchvision=0.13.1
-  - pytorch::torchaudio=0.12.1
-  - pytorch::cudatoolkit=11.3
+  - python=3.8
+  - pytorch::pytorch=1.13.1
+  - pytorch::torchvision=0.14.1
+  - pytorch::torchaudio=0.13.1
+  - pytorch::cudatoolkit=11.7
   - pyg::pyg  # use pip if not working
-  - dglteam::dgl-cuda11.3
+  - dglteam/label/cu117::dgl  # use pip if not working
   - conda-forge::ogb
   - conda-forge::rdkit  # use pip if not working
   - conda-forge::tensorboard
