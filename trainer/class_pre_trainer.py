@@ -130,24 +130,25 @@ class CLASSTrainer(Trainer):
         return modelA_loss, (predictions.detach()), (targets.detach())
 
     def run_per_epoch_evaluations(self, data_loader):
-        for loader, loader_name in data_loader:
-            print(f'computing PCA explained variance of the {loader_name} loader outputs')
-
-            predictions = []
-            targets = []
-            for batch in loader:
-                batch = [element.to(self.device) for element in batch]
-                _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
-                predictions.append(modelA_out)
-                targets.append(modelB_out)
-            predictions = torch.cat(predictions, dim=0)
-            targets = torch.cat(targets, dim=0)
-
-            for X, data_split in [(predictions, f'{loader_name}_pred'), (targets, f'{loader_name}_targets')]:
-                tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
-                                                data_split=data_split)
-
-            print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
+        pass
+        # for loader, loader_name in data_loader:
+        #     print(f'computing PCA explained variance of the {loader_name} loader outputs')
+        #
+        #     predictions = []
+        #     targets = []
+        #     for batch in loader:
+        #         batch = [element.to(self.device) for element in batch]
+        #         _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
+        #         predictions.append(modelA_out)
+        #         targets.append(modelB_out)
+        #     predictions = torch.cat(predictions, dim=0)
+        #     targets = torch.cat(targets, dim=0)
+        #
+        #     for X, data_split in [(predictions, f'{loader_name}_pred'), (targets, f'{loader_name}_targets')]:
+        #         tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
+        #                                         data_split=data_split)
+        #
+        #     print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):
         self.optim = optim(self.model.parameters(), **self.args.optimizer_params)
@@ -253,24 +254,25 @@ class CLASSHybridBarlowTwinsTrainer(Trainer):
         return modelA_loss - modelB_loss, (predictions.detach()), (targets.detach())
 
     def run_per_epoch_evaluations(self, data_loader):
-        for loader, loader_name in data_loader:
-            print(f'computing PCA explained variance of the {loader_name} loader outputs')
-
-            predictions = []
-            targets = []
-            for batch in loader:
-                batch = [element.to(self.device) for element in batch]
-                _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
-                predictions.append(modelA_out)
-                targets.append(modelB_out)
-            predictions = torch.cat(predictions, dim=0)
-            targets = torch.cat(targets, dim=0)
-
-            for X, data_split in [(predictions, f'{loader_name}_pred'), (targets, f'{loader_name}_targets')]:
-                tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
-                                                data_split=data_split)
-
-            print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
+        pass
+        # for loader, loader_name in data_loader:
+        #     print(f'computing PCA explained variance of the {loader_name} loader outputs')
+        #
+        #     predictions = []
+        #     targets = []
+        #     for batch in loader:
+        #         batch = [element.to(self.device) for element in batch]
+        #         _, modelA_out, modelB_out = self.process_batch(batch, optim=None)
+        #         predictions.append(modelA_out)
+        #         targets.append(modelB_out)
+        #     predictions = torch.cat(predictions, dim=0)
+        #     targets = torch.cat(targets, dim=0)
+        #
+        #     for X, data_split in [(predictions, f'{loader_name}_pred'), (targets, f'{loader_name}_targets')]:
+        #         tensorboard_singular_value_plot(predictions=X, targets=None, writer=self.writer, step=self.optim_steps,
+        #                                         data_split=data_split)
+        #
+        #     print(f'finish computing PCA explained variance of the {loader_name} loader outputs')
 
     def initialize_optimizer(self, optim):
         transferred_keys = [k for k in self.model.state_dict().keys() if
