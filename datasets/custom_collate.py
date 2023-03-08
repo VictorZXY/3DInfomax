@@ -28,6 +28,13 @@ def class_collate(batch):
     return g, labels
 
 
+def class_code2_graph_only_collate(batch):
+    # batch is a list of tuple (graph, label)
+    graphs = [e[0] for e in batch]
+    g = dgl.batch(graphs)
+    return g, None
+
+
 def pytorch_geometric_collate(batch: List[Tuple]):
     graphs, targets = map(list, zip(*batch))
     batched_graph = torch_geometric.data.batch.Batch.from_data_list(graphs)
