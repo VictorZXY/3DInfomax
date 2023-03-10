@@ -4,7 +4,7 @@ trainer: class_hybrid_bt
 dataset: class_pcba
 dataset_dir: dataset # /rds/user/xz398/hpc-work/learning-with-class/dataset
 num_epochs: 50
-batch_size: 512
+batch_size: 128  # 512 for pcba, 128 for code2
 log_iterations: 1
 eval_per_epochs: 1
 patience: 10000 # for early stopping etc
@@ -28,11 +28,11 @@ collate_function: class_collate
 
 optimizer: Adam
 optimizer_params:
-  lr: 5.0e-5
+  lr: 1.0e-5  # 5.0e-5 for pcba, 1.0e-5 for code2
 
 optimizer2: Adam
 optimizer2_params:
-  lr: 5.0e-5
+  lr: 1.0e-5  # 5.0e-5 for pcba, 1.0e-5 for code2
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper
@@ -49,7 +49,7 @@ optimizer2_params:
 #  verbose: True
 
 # Model parameters
-model_type: 'PNA'
+model_type: 'PNACode'
 model_parameters:
   target_dim: 256
   hidden_dim: 256
@@ -78,7 +78,7 @@ model_parameters:
   residual: True
 
 # Model parameters
-model2_type: 'PNA'
+model2_type: 'PNACode'
 model2_parameters:
   target_dim: 256
   hidden_dim: 256
