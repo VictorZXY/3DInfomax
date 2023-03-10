@@ -24,7 +24,8 @@ metrics:
   - batch_variance
   - dimension_covariance
 main_metric: loss
-collate_function: class_collate
+collate_function: class_code2_graph_only_collate
+# class_collate for pcba, class_code2_graph_only_collate for code2
 
 optimizer: Adam
 optimizer_params:
