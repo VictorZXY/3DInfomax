@@ -1,7 +1,7 @@
 experiment_name: 'num-layers-4vs10'
 
 trainer: class_hybrid_bt
-dataset: class_pcba
+dataset: class_code2
 dataset_dir: /rds/user/xz398/hpc-work/learning-with-class/dataset
 num_epochs: 50
 batch_size: 128  # 512 for pcba, 128 for code2
