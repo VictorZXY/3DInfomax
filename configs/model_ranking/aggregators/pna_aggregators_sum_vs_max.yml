@@ -18,7 +18,7 @@ loss_params:
   variance_reg: 0
   covariance_reg: 1
 num_train: 50000
-seed: 1
+seed: 42
 
 metrics:
   - batch_variance
