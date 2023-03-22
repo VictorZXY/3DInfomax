@@ -1,10 +1,10 @@
 experiment_name: 'gin-vs-gin'
 
 trainer: class_hybrid_bt
-dataset: class_pcba
+dataset: class_code2
 dataset_dir: /rds/user/xz398/hpc-work/learning-with-class/dataset
 num_epochs: 50
-batch_size: 512
+batch_size: 128  # 512 for pcba, 128 for code2
 log_iterations: 1
 eval_per_epochs: 1
 patience: 10000 # for early stopping etc
@@ -24,15 +24,16 @@ metrics:
   - batch_variance
   - dimension_covariance
 main_metric: loss
-collate_function: class_collate
+collate_function: class_code2_graph_only_collate
+# class_collate for pcba, class_code2_graph_only_collate for code2
 
 optimizer: Adam
 optimizer_params:
-  lr: 5.0e-5
+  lr: 1.0e-5  # 5.0e-5 for pcba, 1.0e-5 for code2
 
 optimizer2: Adam
 optimizer2_params:
-  lr: 5.0e-5
+  lr: 1.0e-5  # 5.0e-5 for pcba, 1.0e-5 for code2
 
 #scheduler_step_per_batch: False
 #lr_scheduler: WarmUpWrapper
@@ -49,7 +50,7 @@ optimizer2_params:
 #  verbose: True
 
 # Model parameters
-model_type: 'OGBGNN'
+model_type: 'OGBGNNCode'
 model_parameters:
   gnn_type: 'gin'
   target_dim: 256
@@ -59,7 +60,7 @@ model_parameters:
   virtual_node: False
 
 # Model parameters
-model2_type: 'OGBGNN'
+model2_type: 'OGBGNNCode'
 model2_parameters:
   gnn_type: 'gin'
   target_dim: 256
