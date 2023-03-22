@@ -60,7 +60,7 @@ model_parameters:
   virtual_node: False
 
 # Model parameters
-model2_type: 'PNA'
+model2_type: 'PNACode'
 model2_parameters:
   target_dim: 256
   hidden_dim: 64

@@ -50,7 +50,7 @@ optimizer2_params:
 #  verbose: True
 
 # Model parameters
-model_type: 'PNA'
+model_type: 'PNACode'
 model_parameters:
   target_dim: 256
   hidden_dim: 64
