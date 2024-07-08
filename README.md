@@ -38,13 +38,13 @@ During pre-training a directory is created in the `runs` directory that contains
 
 ```bibtex
 @article{Zhao2023GraphAC,
-    title={Task-Agnostic Graph Neural Network Evaluation via Adversarial Collaboration},
-    author={Xiangyu Zhao and 
-        Hannes St{\"a}rk and 
-        Dominique Beaini and 
-        Pietro Li{\`o} and 
-        Yiren Zhao},
-    journal={arXiv preprint arXiv:2301.11517},
-    year={2023}
+    title = {Task-Agnostic Graph Neural Network Evaluation via Adversarial Collaboration},
+    author = {Xiangyu Zhao and 
+              Hannes St{\"a}rk and 
+              Dominique Beaini and 
+              Yiren Zhao and
+              Pietro Li{\`o}},
+    journal = {11th International Conference on Learning Representations (ICLR 2023) Machine Learning for Drug Discovery (MLDD) Workshop},
+    year = {2023}
 }
 ```
