@@ -14,7 +14,7 @@ It has been increasingly demanding to develop reliable Graph Neural Network (GNN
 
 Please set up the environment using [Conda](https://docs.conda.io/projects/conda/en/stable/). Clone the current repository:
 
-    git clone https://github.com/VictorZXY/GraphAC
+    git clone https://github.com/VictorZXY/GraphAC.git
 
 Create a new environment with all required packages using [`environment.yml`](./environment.yml) (this can take a while). While in the project directory run:
 
